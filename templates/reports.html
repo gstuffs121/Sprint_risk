@@ -1,0 +1,223 @@
+
+{% extends "base.html" %}
+
+{% block title %}Reports{% endblock %}
+{% block breadcrumb %}Reports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="eyebrow">ANALYTICS & INSIGHTS</div>
+        <h1>Project reports</h1>
+        <p class="page-subtitle">
+            Review sprint progress, task completion and AI risk predictions.
+        </p>
+    </div>
+    <button class="btn btn-secondary" onclick="window.print()">
+        Print report
+    </button>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-top">
+            <span class="stat-label">Total tasks</span>
+            <span class="stat-icon">☷</span>
+        </div>
+        <div class="stat-value">{{ task_stats.total_tasks or 0 }}</div>
+        <div class="stat-note">Tasks across all sprints</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-top">
+            <span class="stat-label">Completed tasks</span>
+            <span class="stat-icon green">✓</span>
+        </div>
+        <div class="stat-value">{{ task_stats.completed_tasks or 0 }}</div>
+        <div class="stat-note">Marked as completed</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-top">
+            <span class="stat-label">Delayed tasks</span>
+            <span class="stat-icon red">!</span>
+        </div>
+        <div class="stat-value">{{ task_stats.delayed_tasks or 0 }}</div>
+        <div class="stat-note">Recorded as delayed</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-top">
+            <span class="stat-label">AI predictions</span>
+            <span class="stat-icon amber">✳</span>
+        </div>
+        <div class="stat-value">{{ prediction_stats.total_predictions or 0 }}</div>
+        <div class="stat-note">Predictions saved in the database</div>
+    </div>
+</div>
+
+<!-- EFFORT ANALYSIS AND COMPLETION -->
+<div class="dashboard-grid">
+    <section class="card">
+        <div class="card-heading">
+            <div>
+                <h2>Effort analysis</h2>
+                <p>Estimated hours compared with recorded actual hours</p>
+            </div>
+        </div>
+
+        <div class="prediction-metrics">
+            <div class="prediction-metric">
+                <span>Average estimated hours</span>
+                <strong>
+                    {% if task_stats.average_estimated_hours is not none %}
+                        {{ "%.1f"|format(task_stats.average_estimated_hours) }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </strong>
+            </div>
+
+            <div class="prediction-metric">
+                <span>Average actual hours</span>
+                <strong>
+                    {% if task_stats.average_actual_hours is not none %}
+                        {{ "%.1f"|format(task_stats.average_actual_hours) }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </strong>
+            </div>
+
+            <div class="prediction-metric">
+                <span>Average predicted risk</span>
+                <strong>
+                    {% if prediction_stats.average_risk is not none %}
+                        {{ "%.1f"|format(prediction_stats.average_risk) }}%
+                    {% else %}
+                        —
+                    {% endif %}
+                </strong>
+            </div>
+        </div>
+
+        <p class="form-help">
+            A dash means no corresponding data has been recorded yet.
+        </p>
+    </section>
+
+    <section class="card">
+        <div class="card-heading">
+            <div>
+                <h2>Completion overview</h2>
+                <p>Based on the current task records</p>
+            </div>
+        </div>
+
+        {% set total = task_stats.total_tasks or 0 %}
+        {% set completed = task_stats.completed_tasks or 0 %}
+        {% set completion = ((completed / total) * 100)|round|int if total else 0 %}
+
+        <div class="report-completion-summary">
+            <div class="report-completion-number">
+                {{ completion }}%
+            </div>
+            <div>
+                <strong>Task completion</strong>
+                <div class="form-help">
+                    {{ completed }} of {{ total }} tasks completed
+                </div>
+            </div>
+        </div>
+
+        <div class="progress-track">
+            <div class="progress-fill"
+                 data-progress="{{ completion }}"></div>
+        </div>
+    </section>
+</div>
+
+<!-- SPRINT PERFORMANCE TABLE -->
+<section class="card">
+    <div class="card-heading">
+        <div>
+            <h2>Sprint performance</h2>
+            <p>Task-level progress for each sprint</p>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Sprint</th>
+                    <th>Status</th>
+                    <th>Total tasks</th>
+                    <th>Completed</th>
+                    <th>Delayed</th>
+                    <th>Completion</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for sprint in sprint_stats %}
+                    {% set count = sprint.task_count or 0 %}
+                    {% set done = sprint.completed_count or 0 %}
+                    {% set percent = ((done / count) * 100)|round|int if count else 0 %}
+
+                    <tr>
+                        <td>
+                            <strong>{{ sprint.name }}</strong>
+                        </td>
+
+                        <td>
+                            <span class="badge badge-{{ (sprint.status or 'planning')|lower|replace(' ', '-') }}">
+                                {{ sprint.status or 'Planning' }}
+                            </span>
+                        </td>
+
+                        <td>{{ count }}</td>
+                        <td>{{ done }}</td>
+                        <td>{{ sprint.delayed_count or 0 }}</td>
+
+                        <td>
+                            <div class="report-progress-cell">
+                                <div class="progress-track report-progress-track">
+                                    <div class="progress-fill"
+                                         data-progress="{{ percent }}"></div>
+                                </div>
+                                <strong>{{ percent }}%</strong>
+                            </div>
+                        </td>
+                    </tr>
+
+                {% else %}
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <strong>No sprint reports yet</strong>
+                                <p>
+                                    Create a sprint and add tasks to see
+                                    your analytics here.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- SET PROGRESS BAR WIDTHS -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".progress-fill[data-progress]").forEach(function (bar) {
+        const value = Number(bar.dataset.progress) || 0;
+        bar.style.width = Math.max(0, Math.min(100, value)) + "%";
+    });
+});
+</script>
+
+{% endblock %}

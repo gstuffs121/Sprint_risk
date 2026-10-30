@@ -1,0 +1,179 @@
+
+{% extends "base.html" %}
+
+{% block title %}Tasks{% endblock %}
+{% block breadcrumb %}Tasks{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="eyebrow">WORK ITEM MANAGEMENT</div>
+        <h1>Tasks</h1>
+        <p class="page-subtitle">Record task details to support effort estimation and delay-risk analysis.</p>
+    </div>
+</div>
+
+{% if error %}
+<div class="flash-message error">{{ error }}</div>
+{% endif %}
+
+<section class="card" style="margin-bottom:22px">
+    <div class="card-heading">
+        <div>
+            <h2>Create a task</h2>
+            <p>Enter task information for your sprint.</p>
+        </div>
+    </div>
+
+    <form method="POST">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="sprint_id">Sprint *</label>
+                <select class="form-control" id="sprint_id" name="sprint_id" required>
+                    <option value="">Choose a sprint</option>
+                    {% for sprint in sprints %}
+                    <option value="{{ sprint.id }}">{{ sprint.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="title">Task title *</label>
+                <input class="form-control" id="title" name="title"
+                       placeholder="e.g. Implement login validation"
+                       maxlength="200" required>
+            </div>
+
+            <div class="form-group full-width">
+                <label for="description">Description</label>
+                <textarea class="form-control" id="description" name="description"
+                          placeholder="Describe the task and expected outcome"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="assignee">Assignee</label>
+                <input class="form-control" id="assignee" name="assignee"
+                       placeholder="Team member name" maxlength="100">
+            </div>
+
+            <div class="form-group">
+                <label for="priority">Priority *</label>
+                <select class="form-control" id="priority" name="priority" required>
+                    <option value="Low">Low</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="complexity">Complexity (1–5) *</label>
+                <select class="form-control" id="complexity" name="complexity" required>
+                    <option value="1">1 — Very simple</option>
+                    <option value="2">2 — Simple</option>
+                    <option value="3" selected>3 — Moderate</option>
+                    <option value="4">4 — Complex</option>
+                    <option value="5">5 — Very complex</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="dependencies">Dependencies (0–5) *</label>
+                <input class="form-control" type="number" id="dependencies"
+                       name="dependencies" min="0" max="5" value="0" required>
+            </div>
+
+            <div class="form-group">
+                <label for="estimated_hours">Estimated hours</label>
+                <input class="form-control" type="number" id="estimated_hours"
+                       name="estimated_hours" min="0" max="100000"
+                       step="0.5" placeholder="e.g. 8">
+            </div>
+
+            <div class="form-group">
+                <label for="actual_hours">Actual hours</label>
+                <input class="form-control" type="number" id="actual_hours"
+                       name="actual_hours" min="0" max="100000"
+                       step="0.5" placeholder="Fill in when known">
+            </div>
+
+            <div class="form-group">
+                <label for="status">Task status</label>
+                <select class="form-control" id="status" name="status">
+                    <option value="To Do">To Do</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="due_date">Due date</label>
+                <input class="form-control" type="date" id="due_date" name="due_date">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button class="btn btn-primary" type="submit">+ Add task</button>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <div class="card-heading">
+        <div>
+            <h2>All tasks</h2>
+            <p>Review priority, ownership and task status.</p>
+        </div>
+        <span class="badge badge-active">{{ tasks|length }} tasks</span>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Task</th>
+                    <th>Sprint</th>
+                    <th>Assignee</th>
+                    <th>Priority</th>
+                    <th>Complexity</th>
+                    <th>Estimate</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td>
+                        <strong>{{ task.title }}</strong>
+                        <span class="table-muted">#{{ task.id }}</span>
+                    </td>
+                    <td>{{ task.sprint_name or '—' }}</td>
+                    <td>{{ task.assignee or 'Unassigned' }}</td>
+                    <td>
+                        <span class="badge badge-{{ (task.priority or 'medium')|lower }}">
+                            {{ task.priority or 'Medium' }}
+                        </span>
+                    </td>
+                    <td>{{ task.complexity }}/5</td>
+                    <td>{{ task.estimated_hours if task.estimated_hours is not none else '—' }}</td>
+                    <td>
+                        <span class="badge badge-{{ (task.status or 'todo')|lower|replace(' ', '-') }}">
+                            {{ task.status or 'To Do' }}
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <strong>No tasks yet</strong>
+                            Create a sprint first, then add tasks using the form above.
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

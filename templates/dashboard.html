@@ -1,0 +1,611 @@
+
+{% extends "base.html" %}
+
+{% block title %}Overview{% endblock %}
+{% block breadcrumb %}Overview{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <div class="eyebrow">YOUR SPRINT WORKSPACE</div>
+        <h1>Project overview</h1>
+        <p class="page-subtitle">Track delivery progress and identify potential sprint risks early.</p>
+    </div>
+    <a href="{{ url_for('predictions') }}" class="btn btn-primary">✳ Run AI prediction</a>
+</div>
+
+<!-- STATISTICS -->
+
+<div class="stats-grid">
+
+    <div class="stat-card">
+        <div class="stat-top">
+            <span class="stat-label">Total sprints</span>
+            <span class="stat-icon">▦</span>
+        </div>
+        <div class="stat-value">{{ total_sprints or 0 }}</div>
+        <div class="stat-note">Sprints in your workspace</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-top">
+            <span class="stat-label">Total tasks</span>
+            <span class="stat-icon green">☷</span>
+        </div>
+        <div class="stat-value">{{ total_tasks or 0 }}</div>
+        <div class="stat-note">Tasks across all sprints</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-top">
+            <span class="stat-label">Delayed tasks</span>
+            <span class="stat-icon red">!</span>
+        </div>
+        <div class="stat-value">{{ delayed_tasks or 0 }}</div>
+        <div class="stat-note">Tasks flagged as delayed</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-top">
+            <span class="stat-label">Estimated effort</span>
+            <span class="stat-icon amber">◷</span>
+        </div>
+        <div class="stat-value">{{ estimated_hours or 0 }}</div>
+        <div class="stat-note">Total estimated hours</div>
+    </div>
+
+</div>
+
+
+<!-- CHART AND AI MONITORING -->
+
+<div class="dashboard-grid">
+
+    <!-- TASK STATUS DISTRIBUTION -->
+
+    <section class="card">
+
+        <div class="card-heading">
+            <div>
+                <h2>Task status distribution</h2>
+                <p>Breakdown of tasks by their current status</p>
+            </div>
+
+            <a class="btn btn-secondary" href="{{ url_for('tasks') }}">
+                View tasks
+            </a>
+        </div>
+
+        <div class="status-chart-layout">
+
+            <div class="donut-container">
+                <canvas id="sprintStatusChart"></canvas>
+
+                <div class="donut-center">
+                    <strong id="chartTotal">0</strong>
+                    <span>Total tasks</span>
+                </div>
+            </div>
+
+            <div id="statusLegend" class="status-legend">
+
+                <div class="legend-row">
+                    <span class="legend-dot" style="background:#FFD000"></span>
+                    <span class="legend-name">Completed</span>
+                    <strong>0</strong>
+                    <span class="legend-percent">0%</span>
+                </div>
+
+                <div class="legend-row">
+                    <span class="legend-dot" style="background:#FFE04A"></span>
+                    <span class="legend-name">In Progress</span>
+                    <strong>0</strong>
+                    <span class="legend-percent">0%</span>
+                </div>
+
+                <div class="legend-row">
+                    <span class="legend-dot" style="background:#FFEA85"></span>
+                    <span class="legend-name">Blocked</span>
+                    <strong>0</strong>
+                    <span class="legend-percent">0%</span>
+                </div>
+
+                <div class="legend-row">
+                    <span class="legend-dot" style="background:#FFF3BD"></span>
+                    <span class="legend-name">Todo</span>
+                    <strong>0</strong>
+                    <span class="legend-percent">0%</span>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- AI RISK MONITORING -->
+
+    <section class="card">
+
+        <div class="card-heading">
+            <div>
+                <h2>AI risk monitoring</h2>
+                <p>Use machine learning to estimate task risk</p>
+            </div>
+
+            <span class="badge badge-active">AI READY</span>
+        </div>
+
+        <div style="padding:15px 0 20px">
+
+            <div class="stat-icon" style="width:48px;height:48px;font-size:24px;margin-bottom:16px">
+                ✳
+            </div>
+
+            <h3 style="font-size:19px;margin-bottom:8px">
+                Plan with more confidence
+            </h3>
+
+            <p class="page-subtitle" style="line-height:1.8;margin-bottom:20px">
+                Estimate task effort and assess delay risk using complexity,
+                priority, dependencies, remaining time and workload.
+            </p>
+
+            <a href="{{ url_for('predictions') }}" class="btn btn-primary">
+                Open AI predictions →
+            </a>
+
+        </div>
+
+        <div class="form-help">
+            Model outputs are estimates and should be reviewed by your team.
+        </div>
+
+    </section>
+
+</div>
+
+
+<!-- RECENT SPRINTS -->
+
+<section class="card">
+
+    <div class="card-heading">
+        <div>
+            <h2>Recent sprints</h2>
+            <p>Your latest sprint activity</p>
+        </div>
+
+        <a href="{{ url_for('sprints') }}" class="btn btn-secondary">
+            All sprints →
+        </a>
+    </div>
+
+    <div class="table-wrap">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Sprint</th>
+                    <th>Start date</th>
+                    <th>End date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for sprint in recent_sprints|default(sprints|default([])) %}
+
+                <tr>
+                    <td><strong>{{ sprint.name }}</strong></td>
+                    <td>{{ sprint.start_date or '—' }}</td>
+                    <td>{{ sprint.end_date or '—' }}</td>
+
+                    <td>
+                        <span class="badge badge-{{ (sprint.status or 'planning')|lower|replace(' ', '-') }}">
+                            {{ sprint.status or 'Planning' }}
+                        </span>
+                    </td>
+                </tr>
+
+                {% else %}
+
+                <tr>
+                    <td colspan="4">
+                        <div class="empty-state">
+                            <strong>No sprints created yet</strong>
+                            Start by creating your first sprint.
+
+                            <div style="margin-top:14px">
+                                <a class="btn btn-primary" href="{{ url_for('sprints') }}">
+                                    + Create sprint
+                                </a>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+        </table>
+
+    </div>
+
+</section>
+
+
+<!-- RECENT TASKS -->
+
+<section class="card" style="margin-top:20px">
+
+    <div class="card-heading">
+        <div>
+            <h2>Recent tasks</h2>
+            <p>Latest tasks added to your project</p>
+        </div>
+
+        <a href="{{ url_for('tasks') }}" class="btn btn-secondary">
+            All tasks →
+        </a>
+    </div>
+
+    <div class="table-wrap">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Task</th>
+                    <th>Assignee</th>
+                    <th>Priority</th>
+                    <th>Estimated hours</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for task in recent_tasks|default(tasks|default([])) %}
+
+                <tr>
+                    <td>
+                        <strong>{{ task.title }}</strong>
+                        <span class="table-muted">Task #{{ task.id }}</span>
+                    </td>
+
+                    <td>{{ task.assignee or 'Unassigned' }}</td>
+
+                    <td>
+                        <span class="badge badge-{{ (task.priority or 'medium')|lower }}">
+                            {{ task.priority or 'Medium' }}
+                        </span>
+                    </td>
+
+                    <td>
+                        {{ task.estimated_hours if task.estimated_hours is not none else '—' }}
+                    </td>
+
+                    <td>
+                        <span class="badge badge-{{ (task.status or 'todo')|lower|replace(' ', '-') }}">
+                            {{ task.status or 'To Do' }}
+                        </span>
+                    </td>
+                </tr>
+
+                {% else %}
+
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <strong>No tasks found</strong>
+                            Add a task to start tracking effort and delivery.
+
+                            <div style="margin-top:14px">
+                                <a class="btn btn-primary" href="{{ url_for('tasks') }}">
+                                    + Create task
+                                </a>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+        </table>
+
+    </div>
+
+</section>
+
+
+<!-- CHART DESIGN -->
+
+<style>
+
+.status-chart-layout {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 25px;
+    padding: 25px 10px;
+    min-height: 290px;
+}
+
+.donut-container {
+    width: 250px;
+    height: 250px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.donut-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+}
+
+.donut-center strong {
+    font-size: 30px;
+    font-weight: 750;
+    color: #ffffff !important;
+}
+
+.donut-center span {
+    font-size: 13px;
+    color: #f5d76e !important;
+    margin-top: 3px;
+}
+
+.status-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    flex: 1;
+    min-width: 180px;
+}
+
+.legend-row {
+    display: grid;
+    grid-template-columns: 14px 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.legend-dot {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+}
+
+.legend-name {
+    color: #ffffff !important;
+    font-weight: 500;
+}
+
+.legend-row strong {
+    font-size: 15px;
+    color: #ffffff !important;
+}
+
+.legend-percent {
+    color: #f5d76e !important;
+    min-width: 42px;
+    text-align: right;
+}
+
+@media (max-width: 650px) {
+
+    .status-chart-layout {
+        flex-direction: column;
+    }
+
+    .donut-container {
+        width: 220px;
+        height: 220px;
+    }
+
+    .status-legend {
+        width: 100%;
+    }
+
+}
+
+</style>
+
+
+<!-- DYNAMIC DONUT CHART -->
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const canvas = document.getElementById("sprintStatusChart");
+
+    if (!canvas || typeof Chart === "undefined") {
+        console.error("Chart.js is not loaded.");
+        return;
+    }
+
+    const statusNames = [
+        "Completed",
+        "In Progress",
+        "Blocked",
+        "Todo"
+    ];
+
+    const yellowColors = [
+        "#FFD000",
+        "#FFE04A",
+        "#FFEA85",
+        "#FFF3BD"
+    ];
+
+    fetch("{{ url_for('chart_data') }}")
+
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Unable to load chart data");
+            }
+            return response.json();
+        })
+
+        .then(data => {
+
+            const counts = {
+                "Completed": 0,
+                "In Progress": 0,
+                "Blocked": 0,
+                "Todo": 0
+            };
+
+            data.labels.forEach((status, index) => {
+
+                const normalized = String(status)
+                    .trim()
+                    .toLowerCase()
+                    .replace(/[_-]/g, " ");
+
+                let category = "Todo";
+
+                if (
+                    normalized === "completed" ||
+                    normalized === "complete"
+                ) {
+                    category = "Completed";
+                }
+
+                else if (
+                    normalized === "in progress" ||
+                    normalized === "progress" ||
+                    normalized === "inprogress"
+                ) {
+                    category = "In Progress";
+                }
+
+                else if (
+                    normalized === "blocked" ||
+                    normalized === "on hold"
+                ) {
+                    category = "Blocked";
+                }
+
+                counts[category] += Number(data.values[index]) || 0;
+
+            });
+
+            const values = statusNames.map(name => counts[name]);
+
+            const total = values.reduce(
+                (sum, value) => sum + value,
+                0
+            );
+
+            document.getElementById("chartTotal").textContent = total;
+
+            // UPDATE LEGEND
+
+            const legend = document.getElementById("statusLegend");
+
+            legend.innerHTML = statusNames.map((name, index) => {
+
+                const percentage = total > 0
+                    ? Math.round((values[index] / total) * 100)
+                    : 0;
+
+                return `
+                    <div class="legend-row">
+                        <span class="legend-dot"
+                              style="background:${yellowColors[index]}"></span>
+                        <span class="legend-name">${name}</span>
+                        <strong>${values[index]}</strong>
+                        <span class="legend-percent">${percentage}%</span>
+                    </div>
+                `;
+
+            }).join("");
+
+
+            // CREATE DONUT CHART
+
+            new Chart(canvas, {
+
+                type: "doughnut",
+
+                data: {
+
+                    labels: statusNames,
+
+                    datasets: [{
+                        data: values,
+
+                        backgroundColor: yellowColors,
+
+                        borderColor: "#ffffff",
+
+                        borderWidth: 3,
+
+                        hoverOffset: 8
+                    }]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    cutout: "65%",
+
+                    plugins: {
+
+                        legend: {
+                            display: false
+                        },
+
+                        tooltip: {
+
+                            callbacks: {
+
+                                label: function(context) {
+
+                                    const value = context.raw;
+
+                                    const percentage = total > 0
+                                        ? ((value / total) * 100).toFixed(1)
+                                        : 0;
+
+                                    return ` ${context.label}: ${value} (${percentage}%)`;
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            });
+
+        })
+
+        .catch(error => {
+            console.error("Task chart error:", error);
+        });
+
+});
+
+</script>
+
+{% endblock %}

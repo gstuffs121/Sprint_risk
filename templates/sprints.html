@@ -1,0 +1,165 @@
+
+{% extends "base.html" %}
+
+{% block title %}Sprints{% endblock %}
+{% block breadcrumb %}Sprints{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="eyebrow">SPRINT MANAGEMENT</div>
+        <h1>Sprints</h1>
+        <p class="page-subtitle">Organize development work into manageable delivery cycles.</p>
+    </div>
+</div>
+
+{% if error %}
+<div class="flash-message error">{{ error }}</div>
+{% endif %}
+
+<div class="dashboard-grid">
+    <section class="card">
+        <div class="card-heading">
+            <div>
+                <h2>Create a sprint</h2>
+                <p>Define the sprint timeline and team capacity.</p>
+            </div>
+        </div>
+
+        <form method="POST">
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label for="name">Sprint name *</label>
+                    <input class="form-control" id="name" name="name"
+                           placeholder="e.g. Sprint 01 - Authentication"
+                           maxlength="150" required>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="goal">Sprint goal</label>
+                    <textarea class="form-control" id="goal" name="goal"
+                              placeholder="What should the team deliver?"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="start_date">Start date *</label>
+                    <input class="form-control" type="date" id="start_date"
+                           name="start_date" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="end_date">End date *</label>
+                    <input class="form-control" type="date" id="end_date"
+                           name="end_date" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="capacity_hours">Capacity (hours) *</label>
+                    <input class="form-control" type="number" id="capacity_hours"
+                           name="capacity_hours" min="1" max="100000"
+                           step="0.5" value="160" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select class="form-control" id="status" name="status">
+                        <option value="Planning">Planning</option>
+                        <option value="Active">Active</option>
+                        <option value="Completed">Completed</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit">+ Create sprint</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card">
+        <div class="card-heading">
+            <div>
+                <h2>Sprint planning guide</h2>
+                <p>Keep your sprint realistic and measurable.</p>
+            </div>
+        </div>
+
+        <div style="display:grid;gap:18px;margin-top:25px">
+            <div style="display:flex;gap:13px">
+                <span class="stat-icon">01</span>
+                <div>
+                    <strong>Set a clear goal</strong>
+                    <p class="page-subtitle" style="margin-top:5px">Describe the outcome the team should deliver.</p>
+                </div>
+            </div>
+            <div style="display:flex;gap:13px">
+                <span class="stat-icon green">02</span>
+                <div>
+                    <strong>Estimate team capacity</strong>
+                    <p class="page-subtitle" style="margin-top:5px">Allow for meetings, leave and other work.</p>
+                </div>
+            </div>
+            <div style="display:flex;gap:13px">
+                <span class="stat-icon amber">03</span>
+                <div>
+                    <strong>Track delivery risks</strong>
+                    <p class="page-subtitle" style="margin-top:5px">Use task effort and risk predictions as planning aids.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<section class="card">
+    <div class="card-heading">
+        <div>
+            <h2>All sprints</h2>
+            <p>Your sprint schedule and current status</p>
+        </div>
+        <span class="badge badge-active">{{ sprints|length }} sprints</span>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Sprint</th>
+                    <th>Start date</th>
+                    <th>End date</th>
+                    <th>Capacity</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sprint in sprints %}
+                <tr>
+                    <td>
+                        <strong>{{ sprint.name }}</strong>
+                        {% if sprint.goal %}
+                        <span class="table-muted">{{ sprint.goal }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ sprint.start_date or '—' }}</td>
+                    <td>{{ sprint.end_date or '—' }}</td>
+                    <td>{{ sprint.capacity_hours }} h</td>
+                    <td>
+                        <span class="badge badge-{{ (sprint.status or 'planning')|lower|replace(' ', '-') }}">
+                            {{ sprint.status or 'Planning' }}
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <strong>Your sprint workspace is empty</strong>
+                            Create your first sprint using the form above.
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

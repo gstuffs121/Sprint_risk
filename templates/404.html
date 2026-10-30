@@ -1,0 +1,16 @@
+
+{% extends "base.html" %}
+
+{% block title %}Page not found{% endblock %}
+{% block breadcrumb %}Page not found{% endblock %}
+
+{% block content %}
+<section class="card" style="max-width:620px;margin:70px auto;text-align:center;padding:48px 25px">
+    <div style="font-size:60px;font-weight:800;color:#6558e8;line-height:1.2">404</div>
+    <h1 style="margin-top:20px">Page not found</h1>
+    <p class="page-subtitle" style="margin-bottom:25px">
+        This page may have moved, or the address may be incorrect.
+    </p>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Return to overview</a>
+</section>
+{% endblock %}

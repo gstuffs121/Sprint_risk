@@ -1,0 +1,135 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2>AI Predictions</h2>
+    <p>Predict task effort and identify possible sprint delays using AI.</p>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    {% if message %}
+    <div class="alert alert-success">
+        {{ message }}
+    </div>
+    {% endif %}
+
+    <!-- Task Selection Form -->
+    <div class="card p-4 mb-4">
+        <h4>Generate AI Prediction</h4>
+
+        <form method="POST" action="{{ url_for('predictions') }}">
+
+            <label for="task_id" class="form-label">
+                Select Task
+            </label>
+
+            <select
+                name="task_id"
+                id="task_id"
+                class="form-select mb-3"
+                required
+            >
+                <option value="">-- Select a task --</option>
+
+                {% for task in tasks %}
+                <option
+                    value="{{ task.id }}"
+                    {% if selected_task_id|string == task.id|string %}selected{% endif %}
+                >
+                    {{ task.title }}
+                </option>
+                {% endfor %}
+
+            </select>
+
+            <button type="submit" class="btn btn-primary">
+                Generate Prediction
+            </button>
+
+        </form>
+    </div>
+
+    <!-- Prediction Result -->
+    {% if result %}
+    <div class="card p-4 mb-4">
+        <h4>Prediction Result</h4>
+
+        <p>
+            <strong>Task:</strong>
+            {{ result.task_title }}
+        </p>
+
+        <p>
+            <strong>Predicted Effort:</strong>
+            {{ result.predicted_hours }} hours
+        </p>
+
+        <p>
+            <strong>Delay Risk:</strong>
+            {{ result.risk_probability }}%
+        </p>
+
+        <p>
+            <strong>Risk Level:</strong>
+            <span class="badge bg-warning text-dark">
+                {{ result.risk_level }}
+            </span>
+        </p>
+
+        <p>
+            <strong>Explanation:</strong>
+            {{ result.explanation }}
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- Previous Predictions -->
+    <div class="card p-4">
+        <h4>Prediction History</h4>
+
+        {% if predictions %}
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Predicted Hours</th>
+                        <th>Risk Probability</th>
+                        <th>Risk Level</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for prediction in predictions %}
+                    <tr>
+                        <td>{{ prediction.task_title or "Unknown Task" }}</td>
+                        <td>{{ prediction.predicted_hours }} hours</td>
+                        <td>{{ prediction.risk_probability }}%</td>
+                        <td>{{ prediction.risk_level }}</td>
+                        <td>{{ prediction.created_at }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+        {% else %}
+        <p>No predictions generated yet.</p>
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% endblock %}

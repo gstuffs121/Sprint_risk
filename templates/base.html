@@ -1,0 +1,78 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SprintAI{% endblock %} | SprintAI</title>
+    <meta name="theme-color" content="#f5f7ff">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <a class="brand" href="{{ url_for('dashboard') }}">
+                <span class="brand-mark">S</span>
+                <span class="brand-name">Sprint<span>AI</span><small>SPRINT INTELLIGENCE</small></span>
+            </a>
+
+            <div class="sidebar-label">WORKSPACE</div>
+            <nav class="side-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <span class="nav-icon">◫</span> Overview
+                </a>
+                <a href="{{ url_for('sprints') }}" class="nav-link {% if request.endpoint == 'sprints' %}active{% endif %}">
+                    <span class="nav-icon">▦</span> Sprints
+                </a>
+                <a href="{{ url_for('tasks') }}" class="nav-link {% if request.endpoint == 'tasks' %}active{% endif %}">
+                    <span class="nav-icon">☷</span> Tasks
+                </a>
+                <a href="{{ url_for('predictions') }}" class="nav-link {% if request.endpoint == 'predictions' %}active{% endif %}">
+                    <span class="nav-icon">✳</span> AI Predictions
+                    <span class="nav-tag">AI</span>
+                </a>
+                <a href="{{ url_for('reports') }}" class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}">
+                    <span class="nav-icon">▤</span> Reports
+                </a>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <div class="ai-status">
+                    <span class="status-pulse"></span>
+                    <div><strong>AI Engine</strong><small>Prediction models ready</small></div>
+                </div>
+                <div class="sidebar-footer">SprintAI · Academic Project</div>
+            </div>
+        </aside>
+
+        <main class="main-area">
+            <header class="topbar">
+                <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">☰</button>
+                <div class="breadcrumb">Workspace <span>/</span> <strong>{% block breadcrumb %}Overview{% endblock %}</strong></div>
+                <div class="topbar-right">
+                    <span class="online-dot"></span>
+                    <span class="system-status">System online</span>
+                    <div class="avatar">SA</div>
+                </div>
+            </header>
+
+            <section class="page-content">
+                {% block content %}{% endblock %}
+                <footer class="page-footer">
+                    <span>© 2026 SprintAI</span>
+                    <span>AI-driven sprint planning and risk intelligence</span>
+                </footer>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
