@@ -1,165 +1,188 @@
-
 {% extends "base.html" %}
 
-{% block title %}Sprints{% endblock %}
+{% block title %}Sprint Management{% endblock %}
 {% block breadcrumb %}Sprints{% endblock %}
 
 {% block content %}
 <div class="page-header">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      CYCLE PLANNING
+    </div>
+    <h1 class="page-title">Sprints</h1>
+    <p class="page-subtitle">Organize engineering work into delivery iterations and monitor capacity limits.</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-primary" data-modal-target="createSprintModal">
+      + Create Sprint
+    </button>
+  </div>
+</div>
+
+<!-- STAT CARDS -->
+<div class="stat-grid" style="grid-template-columns: repeat(3, 1fr);">
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Total Sprints</span>
+      <div class="stat-icon-wrap indigo">▦</div>
+    </div>
+    <div class="stat-value">{{ total_sprints }}</div>
+    <div class="stat-footnote">Iterations recorded in system</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Active Sprints</span>
+      <div class="stat-icon-wrap cyan">⚡</div>
+    </div>
+    <div class="stat-value" style="color:var(--accent);">{{ active_count }}</div>
+    <div class="stat-footnote">Currently in progress</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Total Capacity</span>
+      <div class="stat-icon-wrap amber">◷</div>
+    </div>
+    <div class="stat-value">{{ total_capacity }}<small style="font-size:15px;color:var(--text-dim);"> hrs</small></div>
+    <div class="stat-footnote">Allocated team developer hours</div>
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="card" style="padding:14px 20px; margin-bottom:24px;">
+  <form method="GET" action="{{ url_for('sprints.index') }}" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <a href="{{ url_for('sprints.index') }}" class="btn btn-sm {% if not selected_status %}btn-primary{% else %}btn-secondary{% endif %}">All</a>
+      <a href="{{ url_for('sprints.index', status='active') }}" class="btn btn-sm {% if selected_status == 'active' %}btn-primary{% else %}btn-secondary{% endif %}">Active</a>
+      <a href="{{ url_for('sprints.index', status='planning') }}" class="btn btn-sm {% if selected_status == 'planning' %}btn-primary{% else %}btn-secondary{% endif %}">Planning</a>
+      <a href="{{ url_for('sprints.index', status='completed') }}" class="btn btn-sm {% if selected_status == 'completed' %}btn-primary{% else %}btn-secondary{% endif %}">Completed</a>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:10px;">
+      <input type="text" name="q" class="form-control" placeholder="Search sprints..." value="{{ search_query }}" style="width:240px; padding:6px 12px;">
+      <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+      {% if search_query or selected_status %}
+      <a href="{{ url_for('sprints.index') }}" class="btn btn-sm" style="color:var(--text-dim);">Clear</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- SPRINTS GRID -->
+<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap:20px;">
+  {% for s in sprints %}
+  <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
     <div>
-        <div class="eyebrow">SPRINT MANAGEMENT</div>
-        <h1>Sprints</h1>
-        <p class="page-subtitle">Organize development work into manageable delivery cycles.</p>
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px;">
+        <h3 style="font-size:16px; font-weight:700; color:var(--text-main); margin:0;">
+          <a href="{{ url_for('sprints.detail', sprint_id=s.id) }}" style="color:inherit;">
+            {{ s.name }}
+          </a>
+        </h3>
+        <span class="badge badge-{{ s.status|lower }}">{{ s.status|capitalize }}</span>
+      </div>
+
+      <p style="font-size:12.5px; color:var(--text-muted); line-height:1.4; margin-bottom:16px; min-height:36px;">
+        {{ s.goal or 'No explicit goal defined for this sprint.' }}
+      </p>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; font-size:12px; color:var(--text-dim); margin-bottom:14px; padding:10px 12px; background:rgba(0,0,0,0.2); border-radius:var(--radius-sm);">
+        <div>📅 {{ s.start_date }} &rarr; {{ s.end_date }}</div>
+        <div>{{ s.task_count or 0 }} Tasks</div>
+      </div>
+
+      <!-- Task Completion Progress -->
+      <div style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:600; margin-bottom:4px;">
+          <span style="color:var(--text-muted);">Task Completion</span>
+          <span style="color:var(--success);">{{ s.completed_tasks or 0 }}/{{ s.task_count or 0 }} ({{ s.progress }}%)</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-fill" style="width: {{ s.progress }}%; background:var(--success);"></div>
+        </div>
+      </div>
+
+      <!-- Capacity Usage Progress -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:600; margin-bottom:4px;">
+          <span style="color:var(--text-muted);">Capacity Load</span>
+          <span style="color:var(--primary);">{{ s.allocated_hours or 0 }} / {{ s.capacity_hours }} hrs</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-fill" style="width: {{ s.capacity_percent }}%;"></div>
+        </div>
+      </div>
     </div>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); padding-top:14px; margin-top:8px;">
+      <span style="font-size:11.5px; color:var(--text-dim);">
+        {% if s.delayed_tasks and s.delayed_tasks > 0 %}
+        <span style="color:var(--danger);font-weight:600;">⚠ {{ s.delayed_tasks }} Delayed</span>
+        {% else %}
+        <span style="color:var(--success);">✓ On Track</span>
+        {% endif %}
+      </span>
+      <a href="{{ url_for('sprints.detail', sprint_id=s.id) }}" class="btn btn-secondary btn-sm">
+        Sprint Details &rarr;
+      </a>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="grid-column: 1 / -1; text-align:center; padding:50px 20px;">
+    <div style="font-size:32px; margin-bottom:10px;">▦</div>
+    <div style="font-size:17px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No Sprints Found</div>
+    <p style="font-size:13px; color:var(--text-muted); max-width:400px; margin:0 auto 18px;">
+      Create your first development sprint to begin organizing tasks and estimating risks.
+    </p>
+    <button class="btn btn-primary" data-modal-target="createSprintModal">+ Create Sprint</button>
+  </div>
+  {% endfor %}
 </div>
 
-{% if error %}
-<div class="flash-message error">{{ error }}</div>
-{% endif %}
-
-<div class="dashboard-grid">
-    <section class="card">
-        <div class="card-heading">
-            <div>
-                <h2>Create a sprint</h2>
-                <p>Define the sprint timeline and team capacity.</p>
-            </div>
+<!-- CREATE SPRINT MODAL -->
+<div class="modal-overlay" id="createSprintModal">
+  <div class="modal-window">
+    <div class="modal-header">
+      <h3 class="modal-title">Create New Sprint</h3>
+      <button class="modal-close" data-modal-close>&times;</button>
+    </div>
+    <form action="{{ url_for('sprints.index') }}" method="POST">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label class="form-label">Sprint Name *</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Sprint 16 - Payments & Billing" required>
+          </div>
+          <div class="form-group full-width">
+            <label class="form-label">Sprint Goal</label>
+            <textarea name="goal" class="form-control" placeholder="What key deliverable should the team complete this sprint?"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Start Date *</label>
+            <input type="date" name="start_date" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date *</label>
+            <input type="date" name="end_date" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Capacity (Hours) *</label>
+            <input type="number" step="0.5" name="capacity_hours" class="form-control" value="160" min="1" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-control">
+              <option value="planning" selected>Planning</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
         </div>
-
-        <form method="POST">
-            <div class="form-grid">
-                <div class="form-group full-width">
-                    <label for="name">Sprint name *</label>
-                    <input class="form-control" id="name" name="name"
-                           placeholder="e.g. Sprint 01 - Authentication"
-                           maxlength="150" required>
-                </div>
-
-                <div class="form-group full-width">
-                    <label for="goal">Sprint goal</label>
-                    <textarea class="form-control" id="goal" name="goal"
-                              placeholder="What should the team deliver?"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="start_date">Start date *</label>
-                    <input class="form-control" type="date" id="start_date"
-                           name="start_date" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="end_date">End date *</label>
-                    <input class="form-control" type="date" id="end_date"
-                           name="end_date" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="capacity_hours">Capacity (hours) *</label>
-                    <input class="form-control" type="number" id="capacity_hours"
-                           name="capacity_hours" min="1" max="100000"
-                           step="0.5" value="160" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="status">Status</label>
-                    <select class="form-control" id="status" name="status">
-                        <option value="Planning">Planning</option>
-                        <option value="Active">Active</option>
-                        <option value="Completed">Completed</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="form-actions">
-                <button class="btn btn-primary" type="submit">+ Create sprint</button>
-            </div>
-        </form>
-    </section>
-
-    <section class="card">
-        <div class="card-heading">
-            <div>
-                <h2>Sprint planning guide</h2>
-                <p>Keep your sprint realistic and measurable.</p>
-            </div>
-        </div>
-
-        <div style="display:grid;gap:18px;margin-top:25px">
-            <div style="display:flex;gap:13px">
-                <span class="stat-icon">01</span>
-                <div>
-                    <strong>Set a clear goal</strong>
-                    <p class="page-subtitle" style="margin-top:5px">Describe the outcome the team should deliver.</p>
-                </div>
-            </div>
-            <div style="display:flex;gap:13px">
-                <span class="stat-icon green">02</span>
-                <div>
-                    <strong>Estimate team capacity</strong>
-                    <p class="page-subtitle" style="margin-top:5px">Allow for meetings, leave and other work.</p>
-                </div>
-            </div>
-            <div style="display:flex;gap:13px">
-                <span class="stat-icon amber">03</span>
-                <div>
-                    <strong>Track delivery risks</strong>
-                    <p class="page-subtitle" style="margin-top:5px">Use task effort and risk predictions as planning aids.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">+ Create Sprint</button>
+      </div>
+    </form>
+  </div>
 </div>
-
-<section class="card">
-    <div class="card-heading">
-        <div>
-            <h2>All sprints</h2>
-            <p>Your sprint schedule and current status</p>
-        </div>
-        <span class="badge badge-active">{{ sprints|length }} sprints</span>
-    </div>
-
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>Sprint</th>
-                    <th>Start date</th>
-                    <th>End date</th>
-                    <th>Capacity</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for sprint in sprints %}
-                <tr>
-                    <td>
-                        <strong>{{ sprint.name }}</strong>
-                        {% if sprint.goal %}
-                        <span class="table-muted">{{ sprint.goal }}</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ sprint.start_date or '—' }}</td>
-                    <td>{{ sprint.end_date or '—' }}</td>
-                    <td>{{ sprint.capacity_hours }} h</td>
-                    <td>
-                        <span class="badge badge-{{ (sprint.status or 'planning')|lower|replace(' ', '-') }}">
-                            {{ sprint.status or 'Planning' }}
-                        </span>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5">
-                        <div class="empty-state">
-                            <strong>Your sprint workspace is empty</strong>
-                            Create your first sprint using the form above.
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</section>
 {% endblock %}

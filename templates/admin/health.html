@@ -1,0 +1,124 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}System Health{% endblock %}
+{% block breadcrumb %}System Health{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:#f472b6;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      DIAGNOSTICS & TELEMETRY
+    </div>
+    <h1 class="page-title">System Health & Telemetry</h1>
+    <p class="page-subtitle">Real-time infrastructure health, database connectivity, table sizing, and environment metrics.</p>
+  </div>
+</div>
+
+<!-- HEALTH STATUS CARDS -->
+<div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom:24px;">
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Flask Application</span>
+      <div class="stat-icon-wrap green">✓</div>
+    </div>
+    <div class="stat-value" style="color:var(--success); font-size:22px;">{{ health.flask_status }}</div>
+    <div class="stat-footnote">Python {{ health.python_version }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Database Status</span>
+      <div class="stat-icon-wrap cyan">🗄</div>
+    </div>
+    <div class="stat-value" style="font-size:22px; color:var(--accent);">{{ health.database_backend }}</div>
+    <div class="stat-footnote">{{ health.database_identifier }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Effort Regressor</span>
+      <div class="stat-icon-wrap indigo">🧠</div>
+    </div>
+    <div class="stat-value" style="color:var(--primary); font-size:22px;">{{ health.effort_model }}</div>
+    <div class="stat-footnote">effort_model.joblib</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Risk Classifier</span>
+      <div class="stat-icon-wrap amber">⚡</div>
+    </div>
+    <div class="stat-value" style="color:var(--warning); font-size:22px;">{{ health.risk_model }}</div>
+    <div class="stat-footnote">risk_model.joblib</div>
+  </div>
+
+</div>
+
+<!-- DETAILED DIAGNOSTICS & TABLE COUNTS -->
+<div class="grid-2col">
+
+  <!-- Table Row Counts -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Database Storage & Table Inventory</div>
+        <div class="card-desc">Current row counts across all relational tables</div>
+      </div>
+      <span class="badge badge-completed">ONLINE</span>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      {% for tbl, count in health.table_counts.items() %}
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(0,0,0,0.2); border-radius:var(--radius-sm); border:1px solid var(--border);">
+        <div style="font-family:var(--font-mono); font-size:13px; color:var(--text-main);">{{ tbl }}</div>
+        <div>
+          <span style="font-family:var(--font-mono); font-weight:700; color:var(--primary);">{{ count }}</span>
+          <span style="font-size:11px; color:var(--text-dim);">records</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Environment & Health Checklist -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Infrastructure Health Checklist</div>
+        <div class="card-desc">Status verification of system dependencies</div>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px; font-size:13px;">
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.02); border-radius:var(--radius-sm);">
+        <span>Database Engine Connectivity</span>
+        <span class="badge badge-completed">Operational</span>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.02); border-radius:var(--radius-sm);">
+        <span>Machine Learning Models Loaded</span>
+        <span class="badge badge-completed">Loaded (joblib)</span>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.02); border-radius:var(--radius-sm);">
+        <span>Training Dataset CSV Availability</span>
+        <span class="badge badge-active">{{ health.dataset_file }}</span>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.02); border-radius:var(--radius-sm);">
+        <span>System Clock & Timezone Sync</span>
+        <span style="font-family:var(--font-mono); font-size:11px; color:var(--text-dim);">{{ health.system_time }}</span>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.02); border-radius:var(--radius-sm);">
+        <span>Session & Role Security (RBAC)</span>
+        <span class="badge badge-completed">Enforced (@admin_required)</span>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

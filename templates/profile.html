@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}User Profile{% endblock %}
+{% block breadcrumb %}Profile & Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      ACCOUNT MANAGEMENT
+    </div>
+    <h1 class="page-title">Profile & Settings</h1>
+    <p class="page-subtitle">Manage your personal credentials, contact details, and view your workspace privileges.</p>
+  </div>
+</div>
+
+<div class="grid-2col" style="max-width:960px;">
+
+  <!-- PROFILE SUMMARY CARD -->
+  <div class="card" style="text-align:center; padding:36px 24px;">
+    <div class="avatar-circle" style="width:72px; height:72px; font-size:26px; margin:0 auto 16px;">
+      {{ (user.full_name or user.username)[:2]|upper }}
+    </div>
+
+    <h2 style="font-size:20px; font-weight:800; color:var(--text-main); margin-bottom:4px;">
+      {{ user.full_name or user.username }}
+    </h2>
+    <div style="font-size:13px; color:var(--text-dim); margin-bottom:12px;">
+      @{{ user.username }} &bull; {{ user.email }}
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <span class="badge {% if user.role == 'admin' %}badge-critical{% else %}badge-active{% endif %}" style="font-size:12px; padding:4px 12px;">
+        Role: {{ user.role|upper }}
+      </span>
+    </div>
+
+    <div style="padding:16px; background:rgba(0,0,0,0.25); border-radius:var(--radius-sm); border:1px solid var(--border); text-align:left; font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:8px;">
+      <div><strong>Account ID:</strong> #{{ user.id }}</div>
+      <div><strong>Member Since:</strong> {{ user.created_at or '2026-10-30' }}</div>
+      <div><strong>Status:</strong> <span style="color:var(--success);">Active</span></div>
+    </div>
+  </div>
+
+  <!-- EDIT PROFILE / PASSWORD FORM -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Update Information</div>
+        <div class="card-desc">Edit your display name, contact email, or update password</div>
+      </div>
+    </div>
+
+    {% if error %}
+    <div style="background:var(--danger-soft); border:1px solid rgba(239,68,68,0.3); color:var(--danger); padding:10px 14px; border-radius:var(--radius-sm); font-size:12px; margin-bottom:16px;">
+      ⚠ {{ error }}
+    </div>
+    {% endif %}
+
+    {% if success %}
+    <div style="background:var(--success-soft); border:1px solid rgba(34,197,94,0.3); color:var(--success); padding:10px 14px; border-radius:var(--radius-sm); font-size:12px; margin-bottom:16px;">
+      ✓ {{ success }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('auth.profile') }}">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="full_name" class="form-control" value="{{ user.full_name or '' }}" placeholder="Your name">
+      </div>
+
+      <div class="form-group" style="margin-bottom:18px;">
+        <label class="form-label">Email Address *</label>
+        <input type="email" name="email" class="form-control" value="{{ user.email }}" required>
+      </div>
+
+      <div style="padding:14px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); margin-bottom:18px;">
+        <div style="font-size:13px; font-weight:700; color:var(--text-main); margin-bottom:4px;">Change Password</div>
+        <div style="font-size:11.5px; color:var(--text-dim); margin-bottom:12px;">Leave blank if you do not wish to change your password.</div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">New Password</label>
+          <input type="password" name="new_password" class="form-control" placeholder="••••••••">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Confirm New Password</label>
+          <input type="password" name="confirm_password" class="form-control" placeholder="••••••••">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%; padding:10px;">
+        Save Changes
+      </button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

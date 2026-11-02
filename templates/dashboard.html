@@ -1,611 +1,315 @@
-
 {% extends "base.html" %}
 
-{% block title %}Overview{% endblock %}
+{% block title %}Dashboard Overview{% endblock %}
 {% block breadcrumb %}Overview{% endblock %}
 
 {% block content %}
 
+<!-- WELCOME HEADER -->
 <div class="page-header">
-    <div>
-        <div class="eyebrow">YOUR SPRINT WORKSPACE</div>
-        <h1>Project overview</h1>
-        <p class="page-subtitle">Track delivery progress and identify potential sprint risks early.</p>
+  <div>
+    <div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      PROJECT INTELLIGENCE
     </div>
-    <a href="{{ url_for('predictions') }}" class="btn btn-primary">✳ Run AI prediction</a>
+    <h1 class="page-title">
+      Welcome back, {{ (current_user.full_name or current_user.username) if current_user else 'Sprint Lead' }}
+    </h1>
+    <p class="page-subtitle">
+      Monitor sprint delivery cycles, track effort variance, and forecast project delays with machine learning.
+    </p>
+  </div>
+  <div class="header-actions">
+    <a href="{{ url_for('predictions.index') }}" class="btn btn-primary">
+      ✳ Run AI Prediction
+    </a>
+  </div>
 </div>
 
-<!-- STATISTICS -->
+<!-- KEY PERFORMANCE INDICATORS -->
+<div class="stat-grid">
 
-<div class="stats-grid">
-
-    <div class="stat-card">
-        <div class="stat-top">
-            <span class="stat-label">Total sprints</span>
-            <span class="stat-icon">▦</span>
-        </div>
-        <div class="stat-value">{{ total_sprints or 0 }}</div>
-        <div class="stat-note">Sprints in your workspace</div>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Sprints</span>
+      <div class="stat-icon-wrap indigo">▦</div>
     </div>
-
-    <div class="stat-card">
-        <div class="stat-top">
-            <span class="stat-label">Total tasks</span>
-            <span class="stat-icon green">☷</span>
-        </div>
-        <div class="stat-value">{{ total_tasks or 0 }}</div>
-        <div class="stat-note">Tasks across all sprints</div>
+    <div class="stat-value">{{ total_sprints }}</div>
+    <div class="stat-footnote">
+      <span style="color:var(--accent);font-weight:600;">{{ active_sprints }} Active</span> &bull; {{ completed_sprints }} Completed
     </div>
+  </div>
 
-    <div class="stat-card">
-        <div class="stat-top">
-            <span class="stat-label">Delayed tasks</span>
-            <span class="stat-icon red">!</span>
-        </div>
-        <div class="stat-value">{{ delayed_tasks or 0 }}</div>
-        <div class="stat-note">Tasks flagged as delayed</div>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Total Tasks</span>
+      <div class="stat-icon-wrap cyan">☷</div>
     </div>
+    <div class="stat-value">{{ total_tasks }}</div>
+    <div class="stat-footnote">
+      <span style="color:var(--success);font-weight:600;">{{ completed_tasks }} Done</span> &bull; {{ in_progress_tasks }} In Progress
+    </div>
+  </div>
 
-    <div class="stat-card">
-        <div class="stat-top">
-            <span class="stat-label">Estimated effort</span>
-            <span class="stat-icon amber">◷</span>
-        </div>
-        <div class="stat-value">{{ estimated_hours or 0 }}</div>
-        <div class="stat-note">Total estimated hours</div>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Delayed & Overdue</span>
+      <div class="stat-icon-wrap red">!</div>
     </div>
+    <div class="stat-value" style="color:var(--danger);">{{ delayed_tasks }}</div>
+    <div class="stat-footnote">
+      <span style="color:var(--danger);font-weight:600;">{{ overdue_tasks }} Overdue</span> past deadline
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Estimated Effort</span>
+      <div class="stat-icon-wrap amber">◷</div>
+    </div>
+    <div class="stat-value">{{ estimated_hours }}<small style="font-size:16px;color:var(--text-dim);font-weight:500;"> hrs</small></div>
+    <div class="stat-footnote">
+      <span style="color:var(--text-main);font-weight:600;">{{ actual_hours }} hrs</span> recorded actual
+    </div>
+  </div>
 
 </div>
 
+<!-- HIGH-RISK AI ALERT BANNER (If tasks need attention) -->
+{% if risk_alerts and risk_alerts|length > 0 %}
+<div class="card" style="border-left: 4px solid var(--danger); margin-bottom: 24px; background: rgba(239, 68, 68, 0.05);">
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div style="width:38px;height:38px;border-radius:var(--radius-sm);background:var(--danger-soft);color:var(--danger);display:grid;place-items:center;font-size:20px;font-weight:800;">
+        ⚠
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:15px;color:var(--text-main);">
+          AI Risk Alert: {{ risk_alerts|length }} critical task{% if risk_alerts|length > 1 %}s{% endif %} require immediate attention
+        </div>
+        <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">
+          Machine learning models detected elevated probability of delivery delay.
+        </div>
+      </div>
+    </div>
+    <a href="{{ url_for('predictions.index') }}" class="btn btn-danger btn-sm">
+      Open AI Assessment &rarr;
+    </a>
+  </div>
+</div>
+{% endif %}
 
-<!-- CHART AND AI MONITORING -->
-
+<!-- CHARTS SECTION -->
 <div class="dashboard-grid">
 
-    <!-- TASK STATUS DISTRIBUTION -->
+  <!-- Task Status Donut -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Task Distribution by Status</div>
+        <div class="card-desc">Current pipeline status across all active work items</div>
+      </div>
+      <a href="{{ url_for('tasks.index') }}" class="btn btn-secondary btn-sm">View Board</a>
+    </div>
+    <div style="height: 260px; position: relative;">
+      <canvas id="taskStatusChart"></canvas>
+    </div>
+  </div>
 
-    <section class="card">
-
-        <div class="card-heading">
-            <div>
-                <h2>Task status distribution</h2>
-                <p>Breakdown of tasks by their current status</p>
-            </div>
-
-            <a class="btn btn-secondary" href="{{ url_for('tasks') }}">
-                View tasks
-            </a>
-        </div>
-
-        <div class="status-chart-layout">
-
-            <div class="donut-container">
-                <canvas id="sprintStatusChart"></canvas>
-
-                <div class="donut-center">
-                    <strong id="chartTotal">0</strong>
-                    <span>Total tasks</span>
-                </div>
-            </div>
-
-            <div id="statusLegend" class="status-legend">
-
-                <div class="legend-row">
-                    <span class="legend-dot" style="background:#FFD000"></span>
-                    <span class="legend-name">Completed</span>
-                    <strong>0</strong>
-                    <span class="legend-percent">0%</span>
-                </div>
-
-                <div class="legend-row">
-                    <span class="legend-dot" style="background:#FFE04A"></span>
-                    <span class="legend-name">In Progress</span>
-                    <strong>0</strong>
-                    <span class="legend-percent">0%</span>
-                </div>
-
-                <div class="legend-row">
-                    <span class="legend-dot" style="background:#FFEA85"></span>
-                    <span class="legend-name">Blocked</span>
-                    <strong>0</strong>
-                    <span class="legend-percent">0%</span>
-                </div>
-
-                <div class="legend-row">
-                    <span class="legend-dot" style="background:#FFF3BD"></span>
-                    <span class="legend-name">Todo</span>
-                    <strong>0</strong>
-                    <span class="legend-percent">0%</span>
-                </div>
-
-            </div>
-
-        </div>
-
-    </section>
-
-
-    <!-- AI RISK MONITORING -->
-
-    <section class="card">
-
-        <div class="card-heading">
-            <div>
-                <h2>AI risk monitoring</h2>
-                <p>Use machine learning to estimate task risk</p>
-            </div>
-
-            <span class="badge badge-active">AI READY</span>
-        </div>
-
-        <div style="padding:15px 0 20px">
-
-            <div class="stat-icon" style="width:48px;height:48px;font-size:24px;margin-bottom:16px">
-                ✳
-            </div>
-
-            <h3 style="font-size:19px;margin-bottom:8px">
-                Plan with more confidence
-            </h3>
-
-            <p class="page-subtitle" style="line-height:1.8;margin-bottom:20px">
-                Estimate task effort and assess delay risk using complexity,
-                priority, dependencies, remaining time and workload.
-            </p>
-
-            <a href="{{ url_for('predictions') }}" class="btn btn-primary">
-                Open AI predictions →
-            </a>
-
-        </div>
-
-        <div class="form-help">
-            Model outputs are estimates and should be reviewed by your team.
-        </div>
-
-    </section>
+  <!-- Delay Risk Distribution -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">AI Delay Risk Severity</div>
+        <div class="card-desc">Probabilistic classification from Random Forest model</div>
+      </div>
+      <span class="badge badge-active">ML ACTIVE</span>
+    </div>
+    <div style="height: 260px; position: relative;">
+      <canvas id="riskSeverityChart"></canvas>
+    </div>
+  </div>
 
 </div>
 
+<!-- ACTIVE SPRINTS & RECENT TASKS -->
+<div class="grid-2col">
 
-<!-- RECENT SPRINTS -->
+  <!-- Active / Recent Sprints -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Active Sprints</div>
+        <div class="card-desc">Progress and workload capacity</div>
+      </div>
+      <a href="{{ url_for('sprints.index') }}" class="btn btn-secondary btn-sm">All Sprints &rarr;</a>
+    </div>
 
-<section class="card">
-
-    <div class="card-heading">
-        <div>
-            <h2>Recent sprints</h2>
-            <p>Your latest sprint activity</p>
+    {% if recent_sprints and recent_sprints|length > 0 %}
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      {% for s in recent_sprints[:3] %}
+      <div style="padding:14px; background:rgba(0,0,0,0.2); border-radius:var(--radius-sm); border:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <a href="{{ url_for('sprints.detail', sprint_id=s.id) }}" style="font-weight:700; font-size:14px; color:var(--text-main);">
+            {{ s.name }}
+          </a>
+          <span class="badge badge-{{ s.status|lower }}">{{ s.status|capitalize }}</span>
+        </div>
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:10px;">
+          {{ s.start_date }} &rarr; {{ s.end_date }} &bull; {{ s.task_count or 0 }} tasks
         </div>
 
-        <a href="{{ url_for('sprints') }}" class="btn btn-secondary">
-            All sprints →
-        </a>
+        <!-- Progress bar -->
+        <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:600; margin-bottom:4px;">
+          <span style="color:var(--text-muted);">Completion</span>
+          <span style="color:var(--primary);">{{ s.progress }}%</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-fill" style="width: {{ s.progress }}%;"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:30px 10px; color:var(--text-dim);">
+      No sprints recorded. Click <a href="{{ url_for('sprints.index') }}" style="color:var(--primary);font-weight:600;">Create Sprint</a> to get started.
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Recent Tasks -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Recent Tasks</div>
+        <div class="card-desc">Latest development items and assignments</div>
+      </div>
+      <a href="{{ url_for('tasks.index') }}" class="btn btn-secondary btn-sm">Task Board &rarr;</a>
     </div>
 
     <div class="table-wrap">
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Sprint</th>
-                    <th>Start date</th>
-                    <th>End date</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-
-            <tbody>
-
-                {% for sprint in recent_sprints|default(sprints|default([])) %}
-
-                <tr>
-                    <td><strong>{{ sprint.name }}</strong></td>
-                    <td>{{ sprint.start_date or '—' }}</td>
-                    <td>{{ sprint.end_date or '—' }}</td>
-
-                    <td>
-                        <span class="badge badge-{{ (sprint.status or 'planning')|lower|replace(' ', '-') }}">
-                            {{ sprint.status or 'Planning' }}
-                        </span>
-                    </td>
-                </tr>
-
-                {% else %}
-
-                <tr>
-                    <td colspan="4">
-                        <div class="empty-state">
-                            <strong>No sprints created yet</strong>
-                            Start by creating your first sprint.
-
-                            <div style="margin-top:14px">
-                                <a class="btn btn-primary" href="{{ url_for('sprints') }}">
-                                    + Create sprint
-                                </a>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-        </table>
-
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Risk</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in recent_tasks[:5] %}
+          <tr>
+            <td>
+              <div class="table-primary-text">{{ t.title }}</div>
+              <div style="font-size:11px;color:var(--text-dim);">{{ t.assignee or 'Unassigned' }} &bull; {{ t.estimated_hours }}h</div>
+            </td>
+            <td>
+              <span class="badge badge-{{ t.priority|lower }}">{{ t.priority }}</span>
+            </td>
+            <td>
+              <span class="badge badge-{{ t.status|lower|replace('_','-') }}">{{ t.status|replace('_',' ')|capitalize }}</span>
+            </td>
+            <td>
+              {% if t.risk_level %}
+              <span class="badge badge-{{ t.risk_level|lower }}">{{ t.risk_level }} ({{ t.risk_probability }}%)</span>
+              {% else %}
+              <a href="{{ url_for('predictions.index', task_id=t.id) }}" style="font-size:11px;color:var(--primary);font-weight:600;">+ Predict</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" style="text-align:center;padding:24px;color:var(--text-dim);">
+              No tasks found. Create tasks to begin tracking.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+  </div>
 
-</section>
+</div>
 
+{% endblock %}
 
-<!-- RECENT TASKS -->
-
-<section class="card" style="margin-top:20px">
-
-    <div class="card-heading">
-        <div>
-            <h2>Recent tasks</h2>
-            <p>Latest tasks added to your project</p>
-        </div>
-
-        <a href="{{ url_for('tasks') }}" class="btn btn-secondary">
-            All tasks →
-        </a>
-    </div>
-
-    <div class="table-wrap">
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Task</th>
-                    <th>Assignee</th>
-                    <th>Priority</th>
-                    <th>Estimated hours</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-
-            <tbody>
-
-                {% for task in recent_tasks|default(tasks|default([])) %}
-
-                <tr>
-                    <td>
-                        <strong>{{ task.title }}</strong>
-                        <span class="table-muted">Task #{{ task.id }}</span>
-                    </td>
-
-                    <td>{{ task.assignee or 'Unassigned' }}</td>
-
-                    <td>
-                        <span class="badge badge-{{ (task.priority or 'medium')|lower }}">
-                            {{ task.priority or 'Medium' }}
-                        </span>
-                    </td>
-
-                    <td>
-                        {{ task.estimated_hours if task.estimated_hours is not none else '—' }}
-                    </td>
-
-                    <td>
-                        <span class="badge badge-{{ (task.status or 'todo')|lower|replace(' ', '-') }}">
-                            {{ task.status or 'To Do' }}
-                        </span>
-                    </td>
-                </tr>
-
-                {% else %}
-
-                <tr>
-                    <td colspan="5">
-                        <div class="empty-state">
-                            <strong>No tasks found</strong>
-                            Add a task to start tracking effort and delivery.
-
-                            <div style="margin-top:14px">
-                                <a class="btn btn-primary" href="{{ url_for('tasks') }}">
-                                    + Create task
-                                </a>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-        </table>
-
-    </div>
-
-</section>
-
-
-<!-- CHART DESIGN -->
-
-<style>
-
-.status-chart-layout {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    gap: 25px;
-    padding: 25px 10px;
-    min-height: 290px;
-}
-
-.donut-container {
-    width: 250px;
-    height: 250px;
-    position: relative;
-    flex-shrink: 0;
-}
-
-.donut-center {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    pointer-events: none;
-}
-
-.donut-center strong {
-    font-size: 30px;
-    font-weight: 750;
-    color: #ffffff !important;
-}
-
-.donut-center span {
-    font-size: 13px;
-    color: #f5d76e !important;
-    margin-top: 3px;
-}
-
-.status-legend {
-    display: flex;
-    flex-direction: column;
-    gap: 22px;
-    flex: 1;
-    min-width: 180px;
-}
-
-.legend-row {
-    display: grid;
-    grid-template-columns: 14px 1fr auto auto;
-    align-items: center;
-    gap: 10px;
-    font-size: 14px;
-}
-
-.legend-dot {
-    width: 13px;
-    height: 13px;
-    border-radius: 50%;
-}
-
-.legend-name {
-    color: #ffffff !important;
-    font-weight: 500;
-}
-
-.legend-row strong {
-    font-size: 15px;
-    color: #ffffff !important;
-}
-
-.legend-percent {
-    color: #f5d76e !important;
-    min-width: 42px;
-    text-align: right;
-}
-
-@media (max-width: 650px) {
-
-    .status-chart-layout {
-        flex-direction: column;
-    }
-
-    .donut-container {
-        width: 220px;
-        height: 220px;
-    }
-
-    .status-legend {
-        width: 100%;
-    }
-
-}
-
-</style>
-
-
-<!-- DYNAMIC DONUT CHART -->
-
+{% block scripts %}
 <script>
-
 document.addEventListener("DOMContentLoaded", function () {
-
-    const canvas = document.getElementById("sprintStatusChart");
-
-    if (!canvas || typeof Chart === "undefined") {
-        console.error("Chart.js is not loaded.");
-        return;
-    }
-
-    const statusNames = [
-        "Completed",
-        "In Progress",
-        "Blocked",
-        "Todo"
-    ];
-
-    const yellowColors = [
-        "#FFD000",
-        "#FFE04A",
-        "#FFEA85",
-        "#FFF3BD"
-    ];
-
-    fetch("{{ url_for('chart_data') }}")
-
-        .then(response => {
-            if (!response.ok) {
-                throw new Error("Unable to load chart data");
+  fetch("{{ url_for('chart_data') }}")
+    .then(res => res.json())
+    .then(data => {
+      // 1. Task Status Donut Chart
+      const statusCanvas = document.getElementById("taskStatusChart");
+      if (statusCanvas && data.task_distribution) {
+        new Chart(statusCanvas, {
+          type: "doughnut",
+          data: {
+            labels: data.task_distribution.labels,
+            datasets: [{
+              data: data.task_distribution.values,
+              backgroundColor: ["#64748B", "#6366F1", "#EF4444", "#22C55E"],
+              borderWidth: 2,
+              borderColor: "#172033",
+              hoverOffset: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "72%",
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  boxWidth: 10,
+                  boxHeight: 10,
+                  color: "#94A3B8",
+                  padding: 14,
+                  font: { size: 11, family: "Plus Jakarta Sans" }
+                }
+              }
             }
-            return response.json();
-        })
-
-        .then(data => {
-
-            const counts = {
-                "Completed": 0,
-                "In Progress": 0,
-                "Blocked": 0,
-                "Todo": 0
-            };
-
-            data.labels.forEach((status, index) => {
-
-                const normalized = String(status)
-                    .trim()
-                    .toLowerCase()
-                    .replace(/[_-]/g, " ");
-
-                let category = "Todo";
-
-                if (
-                    normalized === "completed" ||
-                    normalized === "complete"
-                ) {
-                    category = "Completed";
-                }
-
-                else if (
-                    normalized === "in progress" ||
-                    normalized === "progress" ||
-                    normalized === "inprogress"
-                ) {
-                    category = "In Progress";
-                }
-
-                else if (
-                    normalized === "blocked" ||
-                    normalized === "on hold"
-                ) {
-                    category = "Blocked";
-                }
-
-                counts[category] += Number(data.values[index]) || 0;
-
-            });
-
-            const values = statusNames.map(name => counts[name]);
-
-            const total = values.reduce(
-                (sum, value) => sum + value,
-                0
-            );
-
-            document.getElementById("chartTotal").textContent = total;
-
-            // UPDATE LEGEND
-
-            const legend = document.getElementById("statusLegend");
-
-            legend.innerHTML = statusNames.map((name, index) => {
-
-                const percentage = total > 0
-                    ? Math.round((values[index] / total) * 100)
-                    : 0;
-
-                return `
-                    <div class="legend-row">
-                        <span class="legend-dot"
-                              style="background:${yellowColors[index]}"></span>
-                        <span class="legend-name">${name}</span>
-                        <strong>${values[index]}</strong>
-                        <span class="legend-percent">${percentage}%</span>
-                    </div>
-                `;
-
-            }).join("");
-
-
-            // CREATE DONUT CHART
-
-            new Chart(canvas, {
-
-                type: "doughnut",
-
-                data: {
-
-                    labels: statusNames,
-
-                    datasets: [{
-                        data: values,
-
-                        backgroundColor: yellowColors,
-
-                        borderColor: "#ffffff",
-
-                        borderWidth: 3,
-
-                        hoverOffset: 8
-                    }]
-
-                },
-
-                options: {
-
-                    responsive: true,
-
-                    maintainAspectRatio: false,
-
-                    cutout: "65%",
-
-                    plugins: {
-
-                        legend: {
-                            display: false
-                        },
-
-                        tooltip: {
-
-                            callbacks: {
-
-                                label: function(context) {
-
-                                    const value = context.raw;
-
-                                    const percentage = total > 0
-                                        ? ((value / total) * 100).toFixed(1)
-                                        : 0;
-
-                                    return ` ${context.label}: ${value} (${percentage}%)`;
-                                }
-
-                            }
-
-                        }
-
-                    }
-
-                }
-
-            });
-
-        })
-
-        .catch(error => {
-            console.error("Task chart error:", error);
+          }
         });
+      }
 
+      // 2. Risk Severity Bar Chart
+      const riskCanvas = document.getElementById("riskSeverityChart");
+      if (riskCanvas && data.risk_distribution) {
+        new Chart(riskCanvas, {
+          type: "bar",
+          data: {
+            labels: ["Low (<25%)", "Medium (25-50%)", "High (50-75%)", "Critical (>75%)"],
+            datasets: [{
+              label: "Task Count",
+              data: data.risk_distribution.values,
+              backgroundColor: ["#22C55E", "#06B6D4", "#F59E0B", "#EF4444"],
+              borderRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, color: "#64748B" },
+                grid: { color: "rgba(255, 255, 255, 0.05)" }
+              },
+              x: {
+                ticks: { color: "#94A3B8", font: { size: 10 } },
+                grid: { display: false }
+              }
+            },
+            plugins: {
+              legend: { display: false }
+            }
+          }
+        });
+      }
+    })
+    .catch(err => console.error("Chart data error:", err));
 });
-
 </script>
-
 {% endblock %}

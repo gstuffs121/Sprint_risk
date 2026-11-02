@@ -1,0 +1,95 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Sprint Oversight{% endblock %}
+{% block breadcrumb %}Sprint Oversight{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:#f472b6;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      PROJECT DELIVERY CYCLES
+    </div>
+    <h1 class="page-title">Sprint Oversight</h1>
+    <p class="page-subtitle">Administrative oversight of all development iterations and velocity tracking.</p>
+  </div>
+  <div class="header-actions">
+    <a href="{{ url_for('sprints.index') }}" class="btn btn-secondary">
+      View in Workspace &rarr;
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Sprint Name</th>
+          <th>Creator</th>
+          <th>Status</th>
+          <th>Timeline</th>
+          <th>Progress</th>
+          <th>Capacity</th>
+          <th>Delayed</th>
+          <th style="text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sprints %}
+        <tr>
+          <td><span style="font-family:var(--font-mono); color:var(--text-dim);">#{{ s.id }}</span></td>
+          <td>
+            <div class="table-primary-text">{{ s.name }}</div>
+            {% if s.goal %}
+            <div style="font-size:11px; color:var(--text-dim); max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              {{ s.goal }}
+            </div>
+            {% endif %}
+          </td>
+          <td>{{ s.creator_username or 'System' }}</td>
+          <td>
+            <span class="badge badge-{{ s.status|lower }}">{{ s.status|capitalize }}</span>
+          </td>
+          <td>
+            <span style="font-size:11.5px; color:var(--text-dim);">{{ s.start_date }} &rarr; {{ s.end_date }}</span>
+          </td>
+          <td style="min-width:130px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:11.5px; font-weight:600;">{{ s.completed_count }}/{{ s.task_count }} ({{ s.progress }}%)</span>
+              <div class="progress-bar-wrap">
+                <div class="progress-fill" style="width: {{ s.progress }}%;"></div>
+              </div>
+            </div>
+          </td>
+          <td>{{ s.total_est_hours }} / {{ s.capacity_hours }}h</td>
+          <td>
+            {% if s.delayed_count > 0 %}
+            <span style="color:var(--danger); font-weight:700;">{{ s.delayed_count }}</span>
+            {% else %}
+            <span style="color:var(--success);">0</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right;">
+            <div style="display:inline-flex; align-items:center; gap:6px;">
+              <a href="{{ url_for('sprints.detail', sprint_id=s.id) }}" class="btn btn-secondary btn-sm" style="font-size:11px;">
+                Inspect
+              </a>
+              <form action="{{ url_for('sprints.delete', sprint_id=s.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Permanently delete sprint #{{ s.id }} and all its tasks?');">
+                <button type="submit" class="btn btn-danger btn-sm" style="padding:3px 7px;">✕</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" style="text-align:center; padding:36px; color:var(--text-dim);">
+            No sprints in system.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

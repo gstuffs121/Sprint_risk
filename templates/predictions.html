@@ -1,135 +1,293 @@
-
 {% extends "base.html" %}
 
+{% block title %}AI Prediction Centre{% endblock %}
+{% block breadcrumb %}AI Predictions{% endblock %}
+
 {% block content %}
-
-<div class="container mt-4">
-
-    <h2>AI Predictions</h2>
-    <p>Predict task effort and identify possible sprint delays using AI.</p>
-
-    {% if error %}
-    <div class="alert alert-danger">
-        {{ error }}
+<div class="page-header">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      MACHINE LEARNING INFERENCE
     </div>
-    {% endif %}
+    <h1 class="page-title">AI Prediction Centre</h1>
+    <p class="page-subtitle">
+      Forecast development effort and quantify sprint delay probability using dual Random Forest models.
+    </p>
+  </div>
+  <div class="header-actions">
+    <a href="{{ url_for('predictions.export_csv') }}" class="btn btn-secondary">
+      ⬇ Export CSV
+    </a>
+  </div>
+</div>
 
-    {% if message %}
-    <div class="alert alert-success">
-        {{ message }}
+<!-- SECTION 1: INTERACTIVE REAL-TIME WHAT-IF SIMULATOR -->
+<div class="card" style="margin-bottom: 24px; border: 1px solid rgba(99, 102, 241, 0.3); background: linear-gradient(180deg, rgba(23, 32, 51, 0.95), rgba(15, 22, 41, 0.95));">
+  <div class="card-header">
+    <div>
+      <div class="card-title" style="color:var(--accent);">
+        <span>⚡ Real-Time What-If Scenario Simulator</span>
+      </div>
+      <div class="card-desc">
+        Drag the sliders to test parameter combinations with live model inference.
+      </div>
     </div>
-    {% endif %}
+    <span class="badge badge-active">INTERACTIVE</span>
+  </div>
 
-    <!-- Task Selection Form -->
-    <div class="card p-4 mb-4">
-        <h4>Generate AI Prediction</h4>
+  <div class="dashboard-grid" style="align-items:center;">
+    <!-- Sliders Form -->
+    <div id="aiSimulatorForm" style="display:flex; flex-direction:column; gap:16px;">
 
-        <form method="POST" action="{{ url_for('predictions') }}">
+      <!-- Complexity Slider -->
+      <div class="slider-group">
+        <div class="slider-label-row">
+          <span class="form-label">Task Complexity</span>
+          <span class="slider-val" id="simComplexityVal">3</span>
+        </div>
+        <input type="range" class="ai-slider" id="simComplexity" min="1" max="5" value="3">
+        <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-dim); margin-top:2px;">
+          <span>1 - Simple</span>
+          <span>3 - Moderate</span>
+          <span>5 - Complex</span>
+        </div>
+      </div>
 
-            <label for="task_id" class="form-label">
-                Select Task
-            </label>
+      <!-- Priority -->
+      <div class="slider-group">
+        <div class="slider-label-row">
+          <span class="form-label">Priority Level</span>
+        </div>
+        <select class="form-control" id="simPriority" style="padding:6px 12px;">
+          <option value="Low">Low</option>
+          <option value="Medium" selected>Medium</option>
+          <option value="High">High</option>
+          <option value="Critical">Critical</option>
+        </select>
+      </div>
 
-            <select
-                name="task_id"
-                id="task_id"
-                class="form-select mb-3"
-                required
-            >
-                <option value="">-- Select a task --</option>
+      <!-- Dependencies Slider -->
+      <div class="slider-group">
+        <div class="slider-label-row">
+          <span class="form-label">Dependencies (blocking items)</span>
+          <span class="slider-val" id="simDependenciesVal">1</span>
+        </div>
+        <input type="range" class="ai-slider" id="simDependencies" min="0" max="5" value="1">
+      </div>
 
-                {% for task in tasks %}
-                <option
-                    value="{{ task.id }}"
-                    {% if selected_task_id|string == task.id|string %}selected{% endif %}
-                >
-                    {{ task.title }}
-                </option>
-                {% endfor %}
+      <!-- Days Remaining Slider -->
+      <div class="slider-group">
+        <div class="slider-label-row">
+          <span class="form-label">Days Remaining to Due Date</span>
+          <span class="slider-val" id="simDaysVal">7</span>
+        </div>
+        <input type="range" class="ai-slider" id="simDays" min="1" max="14" value="7">
+      </div>
 
-            </select>
+      <!-- Team Workload Slider -->
+      <div class="slider-group">
+        <div class="slider-label-row">
+          <span class="form-label">Team Workload Capacity Utilization</span>
+          <span class="slider-val"><span id="simWorkloadVal">60</span>%</span>
+        </div>
+        <input type="range" class="ai-slider" id="simWorkload" min="30" max="110" value="60">
+      </div>
 
-            <button type="submit" class="btn btn-primary">
-                Generate Prediction
-            </button>
-
-        </form>
     </div>
 
-    <!-- Prediction Result -->
+    <!-- Live Prediction Output Gauge Card -->
+    <div class="gauge-box">
+      <div style="font-size:11px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">
+        ESTIMATED EFFORT
+      </div>
+      <div class="gauge-metric" id="simEffortOutput" style="color:var(--primary);">
+        14.2h
+      </div>
+
+      <div style="width:100%; height:1px; background:var(--border); margin:14px 0;"></div>
+
+      <div style="font-size:11px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">
+        DELAY RISK PROBABILITY
+      </div>
+      <div class="gauge-metric" id="simRiskPercent" style="color:var(--text-main); font-size:36px;">
+        38.5%
+      </div>
+
+      <div style="margin: 8px 0 12px;">
+        <span class="badge badge-medium" id="simRiskLevel">Medium</span>
+      </div>
+
+      <!-- Progress bar visual -->
+      <div class="progress-bar-wrap" style="height:8px; max-width:240px; margin:0 auto;">
+        <div class="progress-fill" id="simRiskBar" style="width: 38.5%; background: var(--accent);"></div>
+      </div>
+
+      <p style="font-size:11px; color:var(--text-dim); margin-top:14px; max-width:260px; line-height:1.4;">
+        Random Forest model updates calculations dynamically based on features.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: TASK-BASED PREDICTION GENERATOR & RESULT -->
+<div class="grid-2col" style="margin-bottom: 24px;">
+
+  <!-- Form: Run Prediction on Stored Task -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Run Prediction on Task</div>
+        <div class="card-desc">Select an existing sprint task to compute and persist risk scores.</div>
+      </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('predictions.index') }}">
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Select Task *</label>
+        <select name="task_id" class="form-control" required style="padding:10px 14px;">
+          <option value="">-- Choose a task from active sprints --</option>
+          {% for t in tasks %}
+          <option value="{{ t.id }}" {% if selected_task_id|string == t.id|string %}selected{% endif %}>
+            #{{ t.id }} - {{ t.title }} ({{ t.sprint_name or 'Sprint' }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="padding:14px; background:rgba(0,0,0,0.2); border-radius:var(--radius-sm); border:1px solid var(--border); font-size:12px; color:var(--text-muted); margin-bottom:18px; line-height:1.5;">
+        ℹ The model automatically extracts the task's complexity, priority, dependencies, due date buffer, and the assignee's non-completed task volume.
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%; padding:10px;">
+        ✳ Generate & Record Prediction
+      </button>
+    </form>
+  </div>
+
+  <!-- Latest Generated Result Card -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Assessment Result</div>
+        <div class="card-desc">Most recently generated model inference</div>
+      </div>
+      {% if result %}
+      <span class="badge badge-{{ result.risk_level|lower }}">{{ result.risk_level }} RISK</span>
+      {% endif %}
+    </div>
+
     {% if result %}
-    <div class="card p-4 mb-4">
-        <h4>Prediction Result</h4>
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div style="padding:12px 14px; background:rgba(255,255,255,0.03); border-radius:var(--radius-sm); border:1px solid var(--border);">
+        <div style="font-size:11px; color:var(--text-dim); text-transform:uppercase; font-weight:700;">Task Evaluated</div>
+        <div style="font-size:15px; font-weight:700; color:var(--text-main); margin-top:2px;">{{ result.task_title }}</div>
+      </div>
 
-        <p>
-            <strong>Task:</strong>
-            {{ result.task_title }}
-        </p>
-
-        <p>
-            <strong>Predicted Effort:</strong>
-            {{ result.predicted_hours }} hours
-        </p>
-
-        <p>
-            <strong>Delay Risk:</strong>
-            {{ result.risk_probability }}%
-        </p>
-
-        <p>
-            <strong>Risk Level:</strong>
-            <span class="badge bg-warning text-dark">
-                {{ result.risk_level }}
-            </span>
-        </p>
-
-        <p>
-            <strong>Explanation:</strong>
-            {{ result.explanation }}
-        </p>
-    </div>
-    {% endif %}
-
-    <!-- Previous Predictions -->
-    <div class="card p-4">
-        <h4>Prediction History</h4>
-
-        {% if predictions %}
-
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped">
-
-                <thead>
-                    <tr>
-                        <th>Task</th>
-                        <th>Predicted Hours</th>
-                        <th>Risk Probability</th>
-                        <th>Risk Level</th>
-                        <th>Date</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {% for prediction in predictions %}
-                    <tr>
-                        <td>{{ prediction.task_title or "Unknown Task" }}</td>
-                        <td>{{ prediction.predicted_hours }} hours</td>
-                        <td>{{ prediction.risk_probability }}%</td>
-                        <td>{{ prediction.risk_level }}</td>
-                        <td>{{ prediction.created_at }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-
-            </table>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+        <div style="padding:14px; background:rgba(0,0,0,0.2); border-radius:var(--radius-sm); text-align:center;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">PREDICTED EFFORT</div>
+          <div style="font-size:26px; font-weight:800; color:var(--primary); font-family:var(--font-mono); margin-top:4px;">
+            {{ result.predicted_hours }} hrs
+          </div>
         </div>
 
-        {% else %}
-        <p>No predictions generated yet.</p>
-        {% endif %}
+        <div style="padding:14px; background:rgba(0,0,0,0.2); border-radius:var(--radius-sm); text-align:center;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">DELAY PROBABILITY</div>
+          <div style="font-size:26px; font-weight:800; color:var(--text-main); font-family:var(--font-mono); margin-top:4px;">
+            {{ result.risk_probability }}%
+          </div>
+        </div>
+      </div>
 
+      <div style="padding:12px 14px; background:rgba(99,102,241,0.06); border-radius:var(--radius-sm); border:1px solid rgba(99,102,241,0.2); font-size:12.5px; color:var(--text-muted); line-height:1.5;">
+        <strong style="color:var(--text-main);">Model Reasoning:</strong> {{ result.explanation }}
+      </div>
     </div>
+    {% else %}
+    <div style="text-align:center; padding:40px 10px; color:var(--text-dim);">
+      <div style="font-size:30px; margin-bottom:8px;">✳</div>
+      <div style="font-size:14px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">No Recent Prediction</div>
+      <p style="font-size:12px; max-width:280px; margin:0 auto;">
+        Select a task on the left or use the simulator above to view AI model calculations.
+      </p>
+    </div>
+    {% endif %}
+  </div>
 
 </div>
 
+<!-- SECTION 3: PREDICTION HISTORY TABLE -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Prediction History & Audit Records</div>
+      <div class="card-desc">Persisted machine learning inferences with historical timestamps</div>
+    </div>
+    <a href="{{ url_for('predictions.export_csv') }}" class="btn btn-secondary btn-sm">
+      Download CSV
+    </a>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Task Title</th>
+          <th>Sprint</th>
+          <th>Assignee</th>
+          <th>Predicted Hours</th>
+          <th>Delay Probability</th>
+          <th>Risk Level</th>
+          <th>Model Version</th>
+          <th>Recorded At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in predictions %}
+        <tr>
+          <td>
+            <div class="table-primary-text">{{ p.task_title }}</div>
+            <div style="font-size:11px; color:var(--text-dim); max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              {{ p.explanation }}
+            </div>
+          </td>
+          <td>{{ p.sprint_name or 'Unassigned' }}</td>
+          <td>{{ p.assignee or 'Unassigned' }}</td>
+          <td>
+            <strong style="font-family:var(--font-mono); color:var(--text-main);">{{ p.predicted_hours }}h</strong>
+          </td>
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-family:var(--font-mono); font-weight:600;">{{ p.risk_probability }}%</span>
+              <div class="progress-bar-wrap" style="width:60px; height:4px;">
+                <div class="progress-fill" style="width:{{ p.risk_probability }}%; background: {% if p.risk_probability < 25 %}var(--success){% elif p.risk_probability < 50 %}var(--accent){% elif p.risk_probability < 75 %}var(--warning){% else %}var(--danger){% endif %};"></div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge badge-{{ p.risk_level|lower }}">{{ p.risk_level }}</span>
+          </td>
+          <td>
+            <span style="font-size:11px; color:var(--text-dim); font-family:var(--font-mono);">{{ p.model_version }}</span>
+          </td>
+          <td>
+            <span style="font-size:11.5px; color:var(--text-dim);">{{ p.created_at }}</span>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" style="text-align:center; padding:36px; color:var(--text-dim);">
+            No predictions saved in database yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TECHNICAL MODEL NOTE -->
+<div style="margin-top:20px; padding:14px 18px; border-radius:var(--radius-sm); background:rgba(0,0,0,0.2); border:1px solid var(--border); font-size:11.5px; color:var(--text-dim); line-height:1.5;">
+  <strong>Machine Learning Architecture Note:</strong> Effort estimation uses scikit-learn's <code>RandomForestRegressor</code> (100 estimators), while delay risk probability uses <code>RandomForestClassifier</code> with a ColumnTransformer encoding numerical features (complexity, dependencies, buffer days, workload) and one-hot categorical priority.
+</div>
 {% endblock %}

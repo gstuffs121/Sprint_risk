@@ -1,179 +1,269 @@
-
 {% extends "base.html" %}
 
-{% block title %}Tasks{% endblock %}
+{% block title %}Tasks & Kanban Board{% endblock %}
 {% block breadcrumb %}Tasks{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <div>
-        <div class="eyebrow">WORK ITEM MANAGEMENT</div>
-        <h1>Tasks</h1>
-        <p class="page-subtitle">Record task details to support effort estimation and delay-risk analysis.</p>
+  <div>
+    <div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      TASK MANAGEMENT & KANBAN
     </div>
+    <h1 class="page-title">Tasks & Work Items</h1>
+    <p class="page-subtitle">Track delivery progress across columns, update status, and manage dependencies.</p>
+  </div>
+  <div class="header-actions">
+    <!-- View Switcher -->
+    <div style="background:rgba(255,255,255,0.06); padding:3px; border-radius:var(--radius-sm); display:flex; gap:4px;">
+      <a href="{{ url_for('tasks.index', view='board', sprint_id=selected_sprint, status=selected_status, priority=selected_priority) }}"
+         class="btn btn-sm {% if view_mode == 'board' %}btn-primary{% else %}btn-secondary{% endif %}" style="padding:4px 10px;">
+        ◫ Board
+      </a>
+      <a href="{{ url_for('tasks.index', view='table', sprint_id=selected_sprint, status=selected_status, priority=selected_priority) }}"
+         class="btn btn-sm {% if view_mode == 'table' %}btn-primary{% else %}btn-secondary{% endif %}" style="padding:4px 10px;">
+        ☰ Table
+      </a>
+    </div>
+
+    <button class="btn btn-primary" data-modal-target="quickTaskModal">
+      + Create Task
+    </button>
+  </div>
 </div>
 
-{% if error %}
-<div class="flash-message error">{{ error }}</div>
+<!-- STATS SUMMARY ROW -->
+<div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom:20px;">
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Total Tasks</span>
+      <div class="stat-icon-wrap indigo">☷</div>
+    </div>
+    <div class="stat-value">{{ total_tasks }}</div>
+    <div class="stat-footnote">{{ in_progress_count }} active in flight</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Completed</span>
+      <div class="stat-icon-wrap green">✓</div>
+    </div>
+    <div class="stat-value" style="color:var(--success);">{{ completed_count }}</div>
+    <div class="stat-footnote">Successfully resolved</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Blocked & Delayed</span>
+      <div class="stat-icon-wrap red">!</div>
+    </div>
+    <div class="stat-value" style="color:var(--danger);">{{ blocked_count }} / {{ delayed_count }}</div>
+    <div class="stat-footnote">Requires team intervention</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Total Effort</span>
+      <div class="stat-icon-wrap amber">◷</div>
+    </div>
+    <div class="stat-value">{{ total_estimated }}<small style="font-size:14px;color:var(--text-dim);"> / {{ total_actual }}h</small></div>
+    <div class="stat-footnote">Estimated vs recorded actual</div>
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="card" style="padding:14px 20px; margin-bottom:20px;">
+  <form method="GET" action="{{ url_for('tasks.index') }}" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <input type="hidden" name="view" value="{{ view_mode }}">
+
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <!-- Sprint Filter -->
+      <select name="sprint_id" class="form-control" style="padding:6px 12px; font-size:12.5px; width:180px;" onchange="this.form.submit()">
+        <option value="">All Sprints</option>
+        {% for s in sprints %}
+        <option value="{{ s.id }}" {% if selected_sprint|string == s.id|string %}selected{% endif %}>
+          {{ s.name }}
+        </option>
+        {% endfor %}
+      </select>
+
+      <!-- Priority Filter -->
+      <select name="priority" class="form-control" style="padding:6px 12px; font-size:12.5px; width:140px;" onchange="this.form.submit()">
+        <option value="">All Priorities</option>
+        <option value="Low" {% if selected_priority == 'Low' %}selected{% endif %}>Low</option>
+        <option value="Medium" {% if selected_priority == 'Medium' %}selected{% endif %}>Medium</option>
+        <option value="High" {% if selected_priority == 'High' %}selected{% endif %}>High</option>
+        <option value="Critical" {% if selected_priority == 'Critical' %}selected{% endif %}>Critical</option>
+      </select>
+
+      <!-- Status Filter -->
+      <select name="status" class="form-control" style="padding:6px 12px; font-size:12.5px; width:140px;" onchange="this.form.submit()">
+        <option value="">All Statuses</option>
+        <option value="todo" {% if selected_status == 'todo' %}selected{% endif %}>To Do</option>
+        <option value="in_progress" {% if selected_status == 'in_progress' %}selected{% endif %}>In Progress</option>
+        <option value="blocked" {% if selected_status == 'blocked' %}selected{% endif %}>Blocked</option>
+        <option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>Completed</option>
+      </select>
+    </div>
+
+    <!-- Search Box -->
+    <div style="display:flex; align-items:center; gap:8px;">
+      <input type="text" name="q" class="form-control" placeholder="Search title or assignee..." value="{{ search_query }}" style="width:220px; padding:6px 12px;">
+      <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+      {% if search_query or selected_sprint or selected_priority or selected_status %}
+      <a href="{{ url_for('tasks.index', view=view_mode) }}" class="btn btn-sm" style="color:var(--text-dim);">Reset</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- CONDITIONAL VIEW: KANBAN BOARD OR DATA TABLE -->
+{% if view_mode == 'board' %}
+
+<!-- KANBAN BOARD VIEW -->
+<div class="kanban-board">
+
+  <!-- COLUMN: TO DO -->
+  <div class="kanban-col">
+    <div class="kanban-header">
+      <div class="col-title" style="color:var(--text-muted);">
+        <span>To Do</span>
+        <span class="col-count">{{ kanban.todo|length }}</span>
+      </div>
+    </div>
+    {% for t in kanban.todo %}
+      {% include "partials/kanban_card.html" %}
+    {% else %}
+      <div style="text-align:center; padding:30px 10px; color:var(--text-dim); font-size:12px;">
+        No tasks in queue
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- COLUMN: IN PROGRESS -->
+  <div class="kanban-col">
+    <div class="kanban-header">
+      <div class="col-title" style="color:#818cf8;">
+        <span>In Progress</span>
+        <span class="col-count" style="color:#818cf8; background:var(--primary-soft);">{{ kanban.in_progress|length }}</span>
+      </div>
+    </div>
+    {% for t in kanban.in_progress %}
+      {% include "partials/kanban_card.html" %}
+    {% else %}
+      <div style="text-align:center; padding:30px 10px; color:var(--text-dim); font-size:12px;">
+        No active tasks
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- COLUMN: BLOCKED -->
+  <div class="kanban-col">
+    <div class="kanban-header">
+      <div class="col-title" style="color:var(--danger);">
+        <span>Blocked / Delayed</span>
+        <span class="col-count" style="color:var(--danger); background:var(--danger-soft);">{{ kanban.blocked|length }}</span>
+      </div>
+    </div>
+    {% for t in kanban.blocked %}
+      {% include "partials/kanban_card.html" %}
+    {% else %}
+      <div style="text-align:center; padding:30px 10px; color:var(--text-dim); font-size:12px;">
+        No blocked tasks
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- COLUMN: COMPLETED -->
+  <div class="kanban-col">
+    <div class="kanban-header">
+      <div class="col-title" style="color:var(--success);">
+        <span>Completed</span>
+        <span class="col-count" style="color:var(--success); background:var(--success-soft);">{{ kanban.completed|length }}</span>
+      </div>
+    </div>
+    {% for t in kanban.completed %}
+      {% include "partials/kanban_card.html" %}
+    {% else %}
+      <div style="text-align:center; padding:30px 10px; color:var(--text-dim); font-size:12px;">
+        No completed tasks
+      </div>
+    {% endfor %}
+  </div>
+
+</div>
+
+{% else %}
+
+<!-- DATA TABLE VIEW -->
+<div class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Task Title</th>
+          <th>Sprint</th>
+          <th>Assignee</th>
+          <th>Priority</th>
+          <th>Complexity</th>
+          <th>Est. Hours</th>
+          <th>Status</th>
+          <th>AI Delay Risk</th>
+          <th style="text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tasks %}
+        <tr>
+          <td>
+            <div class="table-primary-text">{{ t.title }}</div>
+            {% if t.due_date %}
+            <div style="font-size:11px;color:var(--text-dim);">Due: {{ t.due_date }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <span style="font-size:12px; color:var(--text-muted);">{{ t.sprint_name or 'Unassigned' }}</span>
+          </td>
+          <td>{{ t.assignee or 'Unassigned' }}</td>
+          <td>
+            <span class="badge badge-{{ t.priority|lower }}">{{ t.priority }}</span>
+          </td>
+          <td>
+            <span style="font-family:var(--font-mono);font-weight:700;">{{ t.complexity }}/5</span>
+          </td>
+          <td>{{ t.estimated_hours }} hrs</td>
+          <td>
+            <form action="{{ url_for('tasks.update_status', task_id=t.id) }}" method="POST" style="margin:0;">
+              <select name="status" class="form-control" style="padding:3px 8px;font-size:11.5px;height:auto;" onchange="this.form.submit()">
+                <option value="todo" {% if t.status == 'todo' %}selected{% endif %}>To Do</option>
+                <option value="in_progress" {% if t.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                <option value="blocked" {% if t.status == 'blocked' %}selected{% endif %}>Blocked</option>
+                <option value="completed" {% if t.status == 'completed' %}selected{% endif %}>Completed</option>
+              </select>
+            </form>
+          </td>
+          <td>
+            {% if t.risk_level %}
+            <span class="badge badge-{{ t.risk_level|lower }}">{{ t.risk_level }} ({{ t.risk_probability }}%)</span>
+            {% else %}
+            <a href="{{ url_for('predictions.index', task_id=t.id) }}" class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 6px;">
+              ✳ Run AI
+            </a>
+            {% endif %}
+          </td>
+          <td style="text-align:right;">
+            <form action="{{ url_for('tasks.delete', task_id=t.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete this task?');">
+              <button type="submit" class="btn btn-danger btn-sm" style="padding:3px 7px;">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" style="text-align:center;padding:36px;color:var(--text-dim);">
+            No tasks match the selected filters.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
 {% endif %}
-
-<section class="card" style="margin-bottom:22px">
-    <div class="card-heading">
-        <div>
-            <h2>Create a task</h2>
-            <p>Enter task information for your sprint.</p>
-        </div>
-    </div>
-
-    <form method="POST">
-        <div class="form-grid">
-            <div class="form-group">
-                <label for="sprint_id">Sprint *</label>
-                <select class="form-control" id="sprint_id" name="sprint_id" required>
-                    <option value="">Choose a sprint</option>
-                    {% for sprint in sprints %}
-                    <option value="{{ sprint.id }}">{{ sprint.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="title">Task title *</label>
-                <input class="form-control" id="title" name="title"
-                       placeholder="e.g. Implement login validation"
-                       maxlength="200" required>
-            </div>
-
-            <div class="form-group full-width">
-                <label for="description">Description</label>
-                <textarea class="form-control" id="description" name="description"
-                          placeholder="Describe the task and expected outcome"></textarea>
-            </div>
-
-            <div class="form-group">
-                <label for="assignee">Assignee</label>
-                <input class="form-control" id="assignee" name="assignee"
-                       placeholder="Team member name" maxlength="100">
-            </div>
-
-            <div class="form-group">
-                <label for="priority">Priority *</label>
-                <select class="form-control" id="priority" name="priority" required>
-                    <option value="Low">Low</option>
-                    <option value="Medium" selected>Medium</option>
-                    <option value="High">High</option>
-                    <option value="Critical">Critical</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="complexity">Complexity (1–5) *</label>
-                <select class="form-control" id="complexity" name="complexity" required>
-                    <option value="1">1 — Very simple</option>
-                    <option value="2">2 — Simple</option>
-                    <option value="3" selected>3 — Moderate</option>
-                    <option value="4">4 — Complex</option>
-                    <option value="5">5 — Very complex</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="dependencies">Dependencies (0–5) *</label>
-                <input class="form-control" type="number" id="dependencies"
-                       name="dependencies" min="0" max="5" value="0" required>
-            </div>
-
-            <div class="form-group">
-                <label for="estimated_hours">Estimated hours</label>
-                <input class="form-control" type="number" id="estimated_hours"
-                       name="estimated_hours" min="0" max="100000"
-                       step="0.5" placeholder="e.g. 8">
-            </div>
-
-            <div class="form-group">
-                <label for="actual_hours">Actual hours</label>
-                <input class="form-control" type="number" id="actual_hours"
-                       name="actual_hours" min="0" max="100000"
-                       step="0.5" placeholder="Fill in when known">
-            </div>
-
-            <div class="form-group">
-                <label for="status">Task status</label>
-                <select class="form-control" id="status" name="status">
-                    <option value="To Do">To Do</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="due_date">Due date</label>
-                <input class="form-control" type="date" id="due_date" name="due_date">
-            </div>
-        </div>
-
-        <div class="form-actions">
-            <button class="btn btn-primary" type="submit">+ Add task</button>
-        </div>
-    </form>
-</section>
-
-<section class="card">
-    <div class="card-heading">
-        <div>
-            <h2>All tasks</h2>
-            <p>Review priority, ownership and task status.</p>
-        </div>
-        <span class="badge badge-active">{{ tasks|length }} tasks</span>
-    </div>
-
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>Task</th>
-                    <th>Sprint</th>
-                    <th>Assignee</th>
-                    <th>Priority</th>
-                    <th>Complexity</th>
-                    <th>Estimate</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for task in tasks %}
-                <tr>
-                    <td>
-                        <strong>{{ task.title }}</strong>
-                        <span class="table-muted">#{{ task.id }}</span>
-                    </td>
-                    <td>{{ task.sprint_name or '—' }}</td>
-                    <td>{{ task.assignee or 'Unassigned' }}</td>
-                    <td>
-                        <span class="badge badge-{{ (task.priority or 'medium')|lower }}">
-                            {{ task.priority or 'Medium' }}
-                        </span>
-                    </td>
-                    <td>{{ task.complexity }}/5</td>
-                    <td>{{ task.estimated_hours if task.estimated_hours is not none else '—' }}</td>
-                    <td>
-                        <span class="badge badge-{{ (task.status or 'todo')|lower|replace(' ', '-') }}">
-                            {{ task.status or 'To Do' }}
-                        </span>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7">
-                        <div class="empty-state">
-                            <strong>No tasks yet</strong>
-                            Create a sprint first, then add tasks using the form above.
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</section>
 {% endblock %}

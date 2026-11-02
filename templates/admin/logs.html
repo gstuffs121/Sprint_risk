@@ -1,0 +1,78 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}System Audit Logs{% endblock %}
+{% block breadcrumb %}Audit Logs{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:#f472b6;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      COMPLIANCE & TRACEABILITY
+    </div>
+    <h1 class="page-title">System Audit Logs</h1>
+    <p class="page-subtitle">Chronological record of user logins, task operations, AI predictions, and administrative changes.</p>
+  </div>
+</div>
+
+<!-- SEARCH BAR -->
+<div class="card" style="padding:14px 20px; margin-bottom:20px;">
+  <form method="GET" action="{{ url_for('admin.logs') }}" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <div style="display:flex; align-items:center; gap:8px; width:100%; max-width:400px;">
+      <input type="text" name="q" class="form-control" placeholder="Search by action, details, or actor..." value="{{ search_q }}">
+      <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+      {% if search_q %}
+      <a href="{{ url_for('admin.logs') }}" class="btn btn-sm" style="color:var(--text-dim);">Reset</a>
+      {% endif %}
+    </div>
+    <div style="font-size:12px; color:var(--text-dim);">
+      Showing up to 100 most recent events
+    </div>
+  </form>
+</div>
+
+<!-- LOGS TABLE -->
+<div class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Timestamp</th>
+          <th>Action Type</th>
+          <th>Actor</th>
+          <th>Event Details</th>
+          <th>IP Address</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td><span style="font-family:var(--font-mono); color:var(--text-dim);">#{{ log.id }}</span></td>
+          <td style="font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); white-space:nowrap;">
+            {{ log.created_at }}
+          </td>
+          <td>
+            <span class="badge {% if 'DELETE' in log.action or 'UNAUTHORIZED' in log.action %}badge-critical{% elif 'UPDATE' in log.action or 'ROLE' in log.action %}badge-medium{% elif 'CREATED' in log.action or 'REGISTER' in log.action %}badge-completed{% else %}badge-active{% endif %}" style="font-family:var(--font-mono); font-size:10px;">
+              {{ log.action }}
+            </span>
+          </td>
+          <td style="font-weight:600; color:var(--text-main);">{{ log.username or 'System' }}</td>
+          <td>
+            <div style="font-size:12px; color:var(--text-muted); line-height:1.4;">
+              {{ log.details }}
+            </div>
+          </td>
+          <td style="font-family:var(--font-mono); font-size:11px; color:var(--text-dim);">{{ log.ip_address or '127.0.0.1' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" style="text-align:center; padding:36px; color:var(--text-dim);">
+            No audit logs recorded matching this filter.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

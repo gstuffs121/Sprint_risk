@@ -1,0 +1,211 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Admin Overview{% endblock %}
+{% block breadcrumb %}Overview{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:#f472b6;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      SYSTEM LEVEL OVERSIGHT
+    </div>
+    <h1 class="page-title">Admin Control Dashboard</h1>
+    <p class="page-subtitle">Real-time system telemetry, user counts, database metrics, and AI model health.</p>
+  </div>
+  <div class="header-actions">
+    <a href="{{ url_for('admin.system_health') }}" class="btn btn-secondary">
+      💚 Health Report
+    </a>
+    <a href="{{ url_for('admin.ai_monitoring') }}" class="btn btn-primary" style="background:#ec4899;border-color:#ec4899;">
+      🧠 Manage Models
+    </a>
+  </div>
+</div>
+
+<!-- TOP METRIC CARDS -->
+<div class="stat-grid" style="grid-template-columns: repeat(4, 1fr);">
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Registered Users</span>
+      <div class="stat-icon-wrap" style="background:rgba(236,72,153,0.15);color:#f472b6;">👥</div>
+    </div>
+    <div class="stat-value">{{ total_users }}</div>
+    <div class="stat-footnote">
+      <span style="color:var(--success);font-weight:600;">{{ active_users }} Active</span> accounts
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Total Sprints</span>
+      <div class="stat-icon-wrap indigo">▦</div>
+    </div>
+    <div class="stat-value">{{ total_sprints }}</div>
+    <div class="stat-footnote">
+      <span style="color:var(--accent);font-weight:600;">{{ active_sprints }} Active</span> cycles
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Work Items / Tasks</span>
+      <div class="stat-icon-wrap cyan">☷</div>
+    </div>
+    <div class="stat-value">{{ total_tasks }}</div>
+    <div class="stat-footnote">
+      <span style="color:var(--success);font-weight:600;">{{ completed_tasks }} Completed</span> &bull; {{ pending_tasks }} Pending
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">AI Predictions</span>
+      <div class="stat-icon-wrap" style="background:rgba(6,182,212,0.15);color:var(--accent);">✳</div>
+    </div>
+    <div class="stat-value">{{ total_predictions }}</div>
+    <div class="stat-footnote">
+      Avg delay risk: <strong style="color:var(--text-main);">{{ avg_risk }}%</strong>
+    </div>
+  </div>
+
+</div>
+
+<!-- SECOND ROW: AI HEALTH & SYSTEM ENGINE -->
+<div class="grid-2col" style="margin-bottom:24px;">
+
+  <!-- AI Model Pipeline Status -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">AI Engine & Model Artifacts</div>
+        <div class="card-desc">Availability of trained scikit-learn models</div>
+      </div>
+      <a href="{{ url_for('admin.ai_monitoring') }}" class="btn btn-secondary btn-sm">Inspect ML &rarr;</a>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px;">
+
+      <!-- Effort Regressor -->
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(0,0,0,0.25); border-radius:var(--radius-sm); border:1px solid var(--border);">
+        <div>
+          <div style="font-weight:700; font-size:13px; color:var(--text-main);">effort_model.joblib</div>
+          <div style="font-size:11px; color:var(--text-dim);">Random Forest Regressor (Task Effort Hours)</div>
+        </div>
+        <div>
+          {% if model_status.effort_model %}
+          <span class="badge badge-completed">✓ ONLINE ({{ model_status.effort_size_kb }} KB)</span>
+          {% else %}
+          <span class="badge badge-critical">✕ MISSING</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Risk Classifier -->
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(0,0,0,0.25); border-radius:var(--radius-sm); border:1px solid var(--border);">
+        <div>
+          <div style="font-weight:700; font-size:13px; color:var(--text-main);">risk_model.joblib</div>
+          <div style="font-size:11px; color:var(--text-dim);">Random Forest Classifier (Schedule Slip Risk)</div>
+        </div>
+        <div>
+          {% if model_status.risk_model %}
+          <span class="badge badge-completed">✓ ONLINE ({{ model_status.risk_size_kb }} KB)</span>
+          {% else %}
+          <span class="badge badge-critical">✕ MISSING</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Dataset -->
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(0,0,0,0.25); border-radius:var(--radius-sm); border:1px solid var(--border);">
+        <div>
+          <div style="font-weight:700; font-size:13px; color:var(--text-main);">dataset/sprint_tasks.csv</div>
+          <div style="font-size:11px; color:var(--text-dim);">Training and validation feature corpus</div>
+        </div>
+        <div>
+          <span class="badge badge-active">{{ model_status.dataset_rows }} Samples</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Role Breakdown & Engine Telemetry -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Telemetry & Access Structure</div>
+        <div class="card-desc">Active database engine and role distribution</div>
+      </div>
+      <span class="badge badge-active">{{ db_engine|upper }} BACKEND</span>
+    </div>
+
+    <div style="margin-bottom:18px;">
+      <div style="font-size:11px; font-weight:700; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px;">
+        User Distribution by Role
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        {% for r in role_breakdown %}
+        <div style="padding:10px 16px; background:rgba(0,0,0,0.25); border-radius:var(--radius-sm); border:1px solid var(--border); flex:1; min-width:110px; text-align:center;">
+          <div style="font-size:20px; font-weight:800; color:var(--text-main); font-family:var(--font-mono);">{{ r.count }}</div>
+          <div style="font-size:11px; color:var(--text-dim); text-transform:capitalize;">{{ r.role }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div style="padding:14px; background:rgba(99,102,241,0.06); border-radius:var(--radius-sm); border:1px solid rgba(99,102,241,0.2); font-size:12px; color:var(--text-muted); line-height:1.5;">
+      🛡 <strong>Security Policy:</strong> Administrative role checks are enforced strictly on the server via <code>@admin_required</code> decorator. All modifications trigger structured entries in the system audit log.
+    </div>
+  </div>
+
+</div>
+
+<!-- RECENT AUDIT ACTIVITY -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Recent Audit Log Stream</div>
+      <div class="card-desc">System events, authentication actions, and administrative changes</div>
+    </div>
+    <a href="{{ url_for('admin.logs') }}" class="btn btn-secondary btn-sm">All Logs &rarr;</a>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Action</th>
+          <th>Actor</th>
+          <th>Details</th>
+          <th>IP Address</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in recent_logs %}
+        <tr>
+          <td style="font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim);">{{ log.created_at }}</td>
+          <td>
+            <span class="badge badge-active" style="font-family:var(--font-mono); font-size:10px;">{{ log.action }}</span>
+          </td>
+          <td style="font-weight:600; color:var(--text-main);">{{ log.username or 'System' }}</td>
+          <td>
+            <div style="max-width:380px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px;">
+              {{ log.details }}
+            </div>
+          </td>
+          <td style="font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim);">{{ log.ip_address }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" style="text-align:center; padding:30px; color:var(--text-dim);">
+            No audit events recorded yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

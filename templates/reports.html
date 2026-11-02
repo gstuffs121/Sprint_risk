@@ -1,223 +1,238 @@
-
 {% extends "base.html" %}
 
-{% block title %}Reports{% endblock %}
+{% block title %}Reports & Analytics{% endblock %}
 {% block breadcrumb %}Reports{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <div>
-        <div class="eyebrow">ANALYTICS & INSIGHTS</div>
-        <h1>Project reports</h1>
-        <p class="page-subtitle">
-            Review sprint progress, task completion and AI risk predictions.
-        </p>
+  <div>
+    <div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      PROJECT METRICS & INTELLIGENCE
     </div>
+    <h1 class="page-title">Reports & Analytics</h1>
+    <p class="page-subtitle">
+      Comprehensive performance analysis, effort variance, and empirical risk distribution.
+    </p>
+  </div>
+  <div class="header-actions">
     <button class="btn btn-secondary" onclick="window.print()">
-        Print report
+      🖨 Print Report
     </button>
+    <a href="{{ url_for('reports.export_sprints_csv') }}" class="btn btn-primary">
+      ⬇ Export CSV
+    </a>
+  </div>
 </div>
 
-<!-- SUMMARY CARDS -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-top">
-            <span class="stat-label">Total tasks</span>
-            <span class="stat-icon">☷</span>
-        </div>
-        <div class="stat-value">{{ task_stats.total_tasks or 0 }}</div>
-        <div class="stat-note">Tasks across all sprints</div>
+<!-- TOP KPI SUMMARY -->
+<div class="stat-grid" style="grid-template-columns: repeat(4, 1fr);">
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Completion Rate</span>
+      <div class="stat-icon-wrap green">✓</div>
     </div>
-
-    <div class="stat-card">
-        <div class="stat-top">
-            <span class="stat-label">Completed tasks</span>
-            <span class="stat-icon green">✓</span>
-        </div>
-        <div class="stat-value">{{ task_stats.completed_tasks or 0 }}</div>
-        <div class="stat-note">Marked as completed</div>
+    <div class="stat-value" style="color:var(--success);">{{ task_stats.completion_rate }}%</div>
+    <div class="stat-footnote">
+      {{ task_stats.completed_tasks }} of {{ task_stats.total_tasks }} tasks resolved
     </div>
+  </div>
 
-    <div class="stat-card">
-        <div class="stat-top">
-            <span class="stat-label">Delayed tasks</span>
-            <span class="stat-icon red">!</span>
-        </div>
-        <div class="stat-value">{{ task_stats.delayed_tasks or 0 }}</div>
-        <div class="stat-note">Recorded as delayed</div>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Effort Variance</span>
+      <div class="stat-icon-wrap amber">◷</div>
     </div>
-
-    <div class="stat-card">
-        <div class="stat-top">
-            <span class="stat-label">AI predictions</span>
-            <span class="stat-icon amber">✳</span>
-        </div>
-        <div class="stat-value">{{ prediction_stats.total_predictions or 0 }}</div>
-        <div class="stat-note">Predictions saved in the database</div>
+    <div class="stat-value">
+      {% if task_stats.variance_hours > 0 %}+{% endif %}{{ task_stats.variance_hours }}<small style="font-size:15px;color:var(--text-dim);"> hrs</small>
     </div>
-</div>
+    <div class="stat-footnote">
+      Avg Actual vs Avg Estimated per task
+    </div>
+  </div>
 
-<!-- EFFORT ANALYSIS AND COMPLETION -->
-<div class="dashboard-grid">
-    <section class="card">
-        <div class="card-heading">
-            <div>
-                <h2>Effort analysis</h2>
-                <p>Estimated hours compared with recorded actual hours</p>
-            </div>
-        </div>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Delayed Work Items</span>
+      <div class="stat-icon-wrap red">!</div>
+    </div>
+    <div class="stat-value" style="color:var(--danger);">{{ task_stats.delayed_tasks }}</div>
+    <div class="stat-footnote">
+      Tasks exceeding original timeline
+    </div>
+  </div>
 
-        <div class="prediction-metrics">
-            <div class="prediction-metric">
-                <span>Average estimated hours</span>
-                <strong>
-                    {% if task_stats.average_estimated_hours is not none %}
-                        {{ "%.1f"|format(task_stats.average_estimated_hours) }}
-                    {% else %}
-                        —
-                    {% endif %}
-                </strong>
-            </div>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">AI Predictions</span>
+      <div class="stat-icon-wrap indigo">✳</div>
+    </div>
+    <div class="stat-value">{{ prediction_stats.total_predictions }}</div>
+    <div class="stat-footnote">
+      Avg Delay Probability: <strong style="color:var(--text-main);">{{ "%.1f"|format(prediction_stats.average_risk or 0) }}%</strong>
+    </div>
+  </div>
 
-            <div class="prediction-metric">
-                <span>Average actual hours</span>
-                <strong>
-                    {% if task_stats.average_actual_hours is not none %}
-                        {{ "%.1f"|format(task_stats.average_actual_hours) }}
-                    {% else %}
-                        —
-                    {% endif %}
-                </strong>
-            </div>
-
-            <div class="prediction-metric">
-                <span>Average predicted risk</span>
-                <strong>
-                    {% if prediction_stats.average_risk is not none %}
-                        {{ "%.1f"|format(prediction_stats.average_risk) }}%
-                    {% else %}
-                        —
-                    {% endif %}
-                </strong>
-            </div>
-        </div>
-
-        <p class="form-help">
-            A dash means no corresponding data has been recorded yet.
-        </p>
-    </section>
-
-    <section class="card">
-        <div class="card-heading">
-            <div>
-                <h2>Completion overview</h2>
-                <p>Based on the current task records</p>
-            </div>
-        </div>
-
-        {% set total = task_stats.total_tasks or 0 %}
-        {% set completed = task_stats.completed_tasks or 0 %}
-        {% set completion = ((completed / total) * 100)|round|int if total else 0 %}
-
-        <div class="report-completion-summary">
-            <div class="report-completion-number">
-                {{ completion }}%
-            </div>
-            <div>
-                <strong>Task completion</strong>
-                <div class="form-help">
-                    {{ completed }} of {{ total }} tasks completed
-                </div>
-            </div>
-        </div>
-
-        <div class="progress-track">
-            <div class="progress-fill"
-                 data-progress="{{ completion }}"></div>
-        </div>
-    </section>
 </div>
 
 <!-- SPRINT PERFORMANCE TABLE -->
-<section class="card">
-    <div class="card-heading">
-        <div>
-            <h2>Sprint performance</h2>
-            <p>Task-level progress for each sprint</p>
-        </div>
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Sprint Performance Breakdown</div>
+      <div class="card-desc">Comparative analysis across iterations</div>
+    </div>
+    <a href="{{ url_for('reports.export_sprints_csv') }}" class="btn btn-secondary btn-sm">
+      Download Sprints CSV
+    </a>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Sprint Name</th>
+          <th>Status</th>
+          <th>Timeline</th>
+          <th>Tasks</th>
+          <th>Progress</th>
+          <th>Estimated Hours</th>
+          <th>Actual Hours</th>
+          <th>Delayed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sprint_stats %}
+        <tr>
+          <td>
+            <div class="table-primary-text">{{ s.name }}</div>
+          </td>
+          <td>
+            <span class="badge badge-{{ s.status|lower }}">{{ s.status|capitalize }}</span>
+          </td>
+          <td>
+            <span style="font-size:12px; color:var(--text-dim);">{{ s.start_date }} &rarr; {{ s.end_date }}</span>
+          </td>
+          <td>
+            <span style="font-weight:600;">{{ s.completed_count }}/{{ s.task_count }}</span>
+          </td>
+          <td style="min-width: 140px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:11.5px; font-weight:600;">{{ s.progress }}%</span>
+              <div class="progress-bar-wrap">
+                <div class="progress-fill" style="width: {{ s.progress }}%;"></div>
+              </div>
+            </div>
+          </td>
+          <td>{{ s.total_est_hours }} hrs</td>
+          <td>{{ s.total_act_hours }} hrs</td>
+          <td>
+            {% if s.delayed_count > 0 %}
+            <span style="color:var(--danger); font-weight:700;">{{ s.delayed_count }}</span>
+            {% else %}
+            <span style="color:var(--success);">0</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" style="text-align:center; padding:30px; color:var(--text-dim);">
+            No sprint records available.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- RISK CORRELATION MATRICES -->
+<div class="grid-2col">
+
+  <!-- Priority Matrix -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Schedule Slip by Priority</div>
+        <div class="card-desc">Correlation between priority rating and delay outcomes</div>
+      </div>
     </div>
 
     <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>Sprint</th>
-                    <th>Status</th>
-                    <th>Total tasks</th>
-                    <th>Completed</th>
-                    <th>Delayed</th>
-                    <th>Completion</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for sprint in sprint_stats %}
-                    {% set count = sprint.task_count or 0 %}
-                    {% set done = sprint.completed_count or 0 %}
-                    {% set percent = ((done / count) * 100)|round|int if count else 0 %}
-
-                    <tr>
-                        <td>
-                            <strong>{{ sprint.name }}</strong>
-                        </td>
-
-                        <td>
-                            <span class="badge badge-{{ (sprint.status or 'planning')|lower|replace(' ', '-') }}">
-                                {{ sprint.status or 'Planning' }}
-                            </span>
-                        </td>
-
-                        <td>{{ count }}</td>
-                        <td>{{ done }}</td>
-                        <td>{{ sprint.delayed_count or 0 }}</td>
-
-                        <td>
-                            <div class="report-progress-cell">
-                                <div class="progress-track report-progress-track">
-                                    <div class="progress-fill"
-                                         data-progress="{{ percent }}"></div>
-                                </div>
-                                <strong>{{ percent }}%</strong>
-                            </div>
-                        </td>
-                    </tr>
-
-                {% else %}
-                    <tr>
-                        <td colspan="6">
-                            <div class="empty-state">
-                                <strong>No sprint reports yet</strong>
-                                <p>
-                                    Create a sprint and add tasks to see
-                                    your analytics here.
-                                </p>
-                            </div>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Priority</th>
+            <th>Total Tasks</th>
+            <th>Delayed</th>
+            <th>Delay Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in priority_breakdown %}
+          <tr>
+            <td>
+              <span class="badge badge-{{ p.priority|lower }}">{{ p.priority }}</span>
+            </td>
+            <td>{{ p.total }}</td>
+            <td style="color:var(--danger); font-weight:600;">{{ p.delayed_count }}</td>
+            <td>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-weight:700; font-family:var(--font-mono);">{{ p.delay_rate }}%</span>
+                <div class="progress-bar-wrap" style="width:60px;">
+                  <div class="progress-fill" style="width: {{ p.delay_rate }}%; background: {% if p.delay_rate > 50 %}var(--danger){% else %}var(--warning){% endif %};"></div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-</section>
+  </div>
 
-<!-- SET PROGRESS BAR WIDTHS -->
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll(".progress-fill[data-progress]").forEach(function (bar) {
-        const value = Number(bar.dataset.progress) || 0;
-        bar.style.width = Math.max(0, Math.min(100, value)) + "%";
-    });
-});
-</script>
+  <!-- Complexity Matrix -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Schedule Slip by Complexity</div>
+        <div class="card-desc">Empirical correlation with task complexity levels (1–5)</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Complexity</th>
+            <th>Total Tasks</th>
+            <th>Delayed</th>
+            <th>Delay Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in complexity_breakdown %}
+          <tr>
+            <td>
+              <strong style="font-family:var(--font-mono); color:var(--primary);">Level {{ c.complexity }}</strong>
+            </td>
+            <td>{{ c.total }}</td>
+            <td style="color:var(--danger); font-weight:600;">{{ c.delayed_count }}</td>
+            <td>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-weight:700; font-family:var(--font-mono);">{{ c.delay_rate }}%</span>
+                <div class="progress-bar-wrap" style="width:60px;">
+                  <div class="progress-fill" style="width: {{ c.delay_rate }}%; background: {% if c.delay_rate > 50 %}var(--danger){% else %}var(--warning){% endif %};"></div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
 
 {% endblock %}

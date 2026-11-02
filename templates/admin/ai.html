@@ -1,0 +1,163 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}AI Engine & Models{% endblock %}
+{% block breadcrumb %}AI & Models{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:#f472b6;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      MACHINE LEARNING PIPELINE
+    </div>
+    <h1 class="page-title">AI Engine & Model Management</h1>
+    <p class="page-subtitle">Inspect Random Forest artifacts, trigger model retraining, and review inference metrics.</p>
+  </div>
+  <div class="header-actions">
+    <form action="{{ url_for('admin.retrain_models') }}" method="POST" style="margin:0;" onsubmit="return confirm('Retrain machine learning models now? This will generate fresh synthetic samples and update model files.');">
+      <button type="submit" class="btn btn-primary" style="background:#ec4899;border-color:#ec4899;">
+        ⚡ Retrain Models Now
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- MODEL ARTIFACT CARDS -->
+<div class="grid-2col" style="margin-bottom:24px;">
+
+  <!-- Effort Model -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Effort Estimation Model</div>
+        <div class="card-desc">Continuous hours prediction (effort_model.joblib)</div>
+      </div>
+      {% if model_info.effort_model.exists %}
+      <span class="badge badge-completed">✓ ONLINE</span>
+      {% else %}
+      <span class="badge badge-critical">✕ MISSING</span>
+      {% endif %}
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px; font-size:12.5px; color:var(--text-muted);">
+      <div><strong>Algorithm:</strong> <code>RandomForestRegressor</code> (scikit-learn)</div>
+      <div><strong>Features:</strong> Complexity, Dependencies, Days Remaining, Team Workload, Priority</div>
+      <div><strong>Artifact Size:</strong> {{ model_info.effort_model.size_kb }} KB</div>
+      <div><strong>Last Trained:</strong> <span style="font-family:var(--font-mono); color:var(--text-main);">{{ model_info.effort_model.modified }}</span></div>
+    </div>
+  </div>
+
+  <!-- Risk Model -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Delay Risk Classification Model</div>
+        <div class="card-desc">Probabilistic schedule slip estimator (risk_model.joblib)</div>
+      </div>
+      {% if model_info.risk_model.exists %}
+      <span class="badge badge-completed">✓ ONLINE</span>
+      {% else %}
+      <span class="badge badge-critical">✕ MISSING</span>
+      {% endif %}
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px; font-size:12.5px; color:var(--text-muted);">
+      <div><strong>Algorithm:</strong> <code>RandomForestClassifier</code> (Binary classification)</div>
+      <div><strong>Prediction Target:</strong> Probability of Delay [0 = On-Time, 1 = Delayed]</div>
+      <div><strong>Artifact Size:</strong> {{ model_info.risk_model.size_kb }} KB</div>
+      <div><strong>Last Trained:</strong> <span style="font-family:var(--font-mono); color:var(--text-main);">{{ model_info.risk_model.modified }}</span></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- PREDICTION METRICS SUMMARY -->
+<div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom:24px;">
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Total Predictions</span>
+      <div class="stat-icon-wrap indigo">✳</div>
+    </div>
+    <div class="stat-value">{{ stats.total }}</div>
+    <div class="stat-footnote">Evaluated across all sprints</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Critical Risk Flagged</span>
+      <div class="stat-icon-wrap red">!</div>
+    </div>
+    <div class="stat-value" style="color:var(--danger);">{{ stats.critical_count }}</div>
+    <div class="stat-footnote">&gt;75% delay probability</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">High Risk Flagged</span>
+      <div class="stat-icon-wrap amber">⚠</div>
+    </div>
+    <div class="stat-value" style="color:var(--warning);">{{ stats.high_count }}</div>
+    <div class="stat-footnote">50% to 75% delay probability</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Low / Safe Risk</span>
+      <div class="stat-icon-wrap green">✓</div>
+    </div>
+    <div class="stat-value" style="color:var(--success);">{{ stats.low_count }}</div>
+    <div class="stat-footnote">&lt;25% delay probability</div>
+  </div>
+</div>
+
+<!-- RECENT MODEL PREDICTIONS AUDIT -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Recent Model Inferences</div>
+      <div class="card-desc">Latest predictions stored in database</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Task Title</th>
+          <th>Predicted Hours</th>
+          <th>Risk Probability</th>
+          <th>Risk Level</th>
+          <th>Model Version</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in recent_preds %}
+        <tr>
+          <td>
+            <div class="table-primary-text">{{ p.task_title }}</div>
+            <div style="font-size:11px; color:var(--text-dim); max-width:320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              {{ p.explanation }}
+            </div>
+          </td>
+          <td><strong style="font-family:var(--font-mono); color:var(--text-main);">{{ p.predicted_hours }}h</strong></td>
+          <td>
+            <span style="font-family:var(--font-mono); font-weight:700;">{{ p.risk_probability }}%</span>
+          </td>
+          <td>
+            <span class="badge badge-{{ p.risk_level|lower }}">{{ p.risk_level }}</span>
+          </td>
+          <td><span style="font-family:var(--font-mono); font-size:11px;">{{ p.model_version }}</span></td>
+          <td style="font-size:11.5px; color:var(--text-dim);">{{ p.created_at }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" style="text-align:center; padding:30px; color:var(--text-dim);">
+            No prediction records found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

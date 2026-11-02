@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}{{ sprint.name }}{% endblock %}
+{% block breadcrumb %}<a href="{{ url_for('sprints.index') }}" style="color:var(--text-dim);">Sprints</a> <span class="divider">/</span> {{ sprint.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+      <span class="badge badge-{{ sprint.status|lower }}">{{ sprint.status|capitalize }}</span>
+      <span style="font-size:12px; color:var(--text-dim);">
+        📅 {{ sprint.start_date }} &rarr; {{ sprint.end_date }} ({{ days_remaining }} days remaining)
+      </span>
+    </div>
+    <h1 class="page-title">{{ sprint.name }}</h1>
+    <p class="page-subtitle" style="max-width:700px;">
+      {{ sprint.goal or 'No explicit sprint goal specified.' }}
+    </p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-secondary" data-modal-target="editSprintModal">
+      ⚙ Edit Sprint
+    </button>
+    <button class="btn btn-primary" data-modal-target="addSprintTaskModal">
+      + Add Task
+    </button>
+  </div>
+</div>
+
+<!-- SPRINT METRICS -->
+<div class="stat-grid" style="grid-template-columns: repeat(4, 1fr);">
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Total Tasks</span>
+      <div class="stat-icon-wrap indigo">☷</div>
+    </div>
+    <div class="stat-value">{{ total_tasks }}</div>
+    <div class="stat-footnote">
+      <span style="color:var(--success);font-weight:600;">{{ completed_tasks }} Completed</span> &bull; {{ in_progress_tasks }} In Progress
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Completion Progress</span>
+      <div class="stat-icon-wrap green">✓</div>
+    </div>
+    <div class="stat-value" style="color:var(--success);">{{ progress }}%</div>
+    <div class="progress-bar-wrap" style="margin-top:8px;">
+      <div class="progress-fill" style="width: {{ progress }}%; background:var(--success);"></div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Capacity Utilization</span>
+      <div class="stat-icon-wrap amber">◷</div>
+    </div>
+    <div class="stat-value">{{ total_est }}<small style="font-size:14px;color:var(--text-dim);"> / {{ capacity }} hrs</small></div>
+    <div class="progress-bar-wrap" style="margin-top:8px;">
+      <div class="progress-fill" style="width: {{ capacity_usage }}%;"></div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Delayed Tasks</span>
+      <div class="stat-icon-wrap red">!</div>
+    </div>
+    <div class="stat-value" style="color:var(--danger);">{{ delayed_tasks }}</div>
+    <div class="stat-footnote">Flagged for schedule intervention</div>
+  </div>
+
+</div>
+
+<!-- SPRINT TASKS TABLE -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Tasks in {{ sprint.name }}</div>
+      <div class="card-desc">Manage assignees, status updates, and view risk predictions</div>
+    </div>
+    <button class="btn btn-secondary btn-sm" data-modal-target="addSprintTaskModal">
+      + New Task
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Task Title</th>
+          <th>Assignee</th>
+          <th>Priority</th>
+          <th>Complexity</th>
+          <th>Est / Act Hours</th>
+          <th>Status</th>
+          <th>AI Delay Risk</th>
+          <th style="text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tasks %}
+        <tr>
+          <td>
+            <div class="table-primary-text">{{ t.title }}</div>
+            {% if t.description %}
+            <div style="font-size:11px;color:var(--text-dim);max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              {{ t.description }}
+            </div>
+            {% endif %}
+          </td>
+          <td>{{ t.assignee or 'Unassigned' }}</td>
+          <td>
+            <span class="badge badge-{{ t.priority|lower }}">{{ t.priority }}</span>
+          </td>
+          <td>
+            <span style="font-family:var(--font-mono);font-weight:700;">{{ t.complexity }}/5</span>
+          </td>
+          <td>
+            {{ t.estimated_hours }}h / <span style="color:var(--text-main);">{{ t.actual_hours }}h</span>
+          </td>
+          <td>
+            <form action="{{ url_for('tasks.update_status', task_id=t.id) }}" method="POST" style="margin:0;">
+              <select name="status" class="form-control" style="padding:3px 8px;font-size:11.5px;height:auto;" onchange="this.form.submit()">
+                <option value="todo" {% if t.status == 'todo' %}selected{% endif %}>To Do</option>
+                <option value="in_progress" {% if t.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                <option value="blocked" {% if t.status == 'blocked' %}selected{% endif %}>Blocked</option>
+                <option value="completed" {% if t.status == 'completed' %}selected{% endif %}>Completed</option>
+              </select>
+            </form>
+          </td>
+          <td>
+            {% if t.risk_level %}
+            <span class="badge badge-{{ t.risk_level|lower }}">{{ t.risk_level }} ({{ t.risk_probability }}%)</span>
+            {% else %}
+            <a href="{{ url_for('predictions.index', task_id=t.id) }}" class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 6px;">
+              ✳ Run AI
+            </a>
+            {% endif %}
+          </td>
+          <td style="text-align:right;">
+            <form action="{{ url_for('tasks.delete', task_id=t.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete this task?');">
+              <button type="submit" class="btn btn-danger btn-sm" style="padding:3px 7px;">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" style="text-align:center;padding:36px;color:var(--text-dim);">
+            No tasks in this sprint yet. Click <strong>+ Add Task</strong> to populate this sprint.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ADD TASK MODAL (BOUND TO THIS SPRINT) -->
+<div class="modal-overlay" id="addSprintTaskModal">
+  <div class="modal-window">
+    <div class="modal-header">
+      <h3 class="modal-title">Add Task to {{ sprint.name }}</h3>
+      <button class="modal-close" data-modal-close>&times;</button>
+    </div>
+    <form action="{{ url_for('tasks.index') }}" method="POST">
+      <input type="hidden" name="sprint_id" value="{{ sprint.id }}">
+      <input type="hidden" name="return_sprint" value="{{ sprint.id }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label class="form-label">Task Title *</label>
+            <input type="text" name="title" class="form-control" placeholder="e.g. Implement schema migration" required>
+          </div>
+          <div class="form-group full-width">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" placeholder="Task description and deliverables..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Assignee</label>
+            <input type="text" name="assignee" class="form-control" placeholder="Developer name" value="{{ current_user.full_name if current_user else '' }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select name="priority" class="form-control">
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+              <option value="Critical">Critical</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Complexity (1–5)</label>
+            <select name="complexity" class="form-control">
+              <option value="1">1 - Very Simple</option>
+              <option value="2">2 - Simple</option>
+              <option value="3" selected>3 - Moderate</option>
+              <option value="4">4 - Complex</option>
+              <option value="5">5 - Very Complex</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dependencies (0–5)</label>
+            <input type="number" name="dependencies" class="form-control" min="0" max="5" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Estimated Hours</label>
+            <input type="number" step="0.5" name="estimated_hours" class="form-control" value="8.0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Due Date</label>
+            <input type="date" name="due_date" class="form-control" value="{{ sprint.end_date }}">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">+ Add Task</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT SPRINT MODAL -->
+<div class="modal-overlay" id="editSprintModal">
+  <div class="modal-window">
+    <div class="modal-header">
+      <h3 class="modal-title">Edit Sprint</h3>
+      <button class="modal-close" data-modal-close>&times;</button>
+    </div>
+    <form action="{{ url_for('sprints.edit', sprint_id=sprint.id) }}" method="POST">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label class="form-label">Sprint Name *</label>
+            <input type="text" name="name" class="form-control" value="{{ sprint.name }}" required>
+          </div>
+          <div class="form-group full-width">
+            <label class="form-label">Sprint Goal</label>
+            <textarea name="goal" class="form-control">{{ sprint.goal }}</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Start Date *</label>
+            <input type="date" name="start_date" class="form-control" value="{{ sprint.start_date }}" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date *</label>
+            <input type="date" name="end_date" class="form-control" value="{{ sprint.end_date }}" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Capacity (Hours)</label>
+            <input type="number" step="0.5" name="capacity_hours" class="form-control" value="{{ sprint.capacity_hours }}" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-control">
+              <option value="planning" {% if sprint.status == 'planning' %}selected{% endif %}>Planning</option>
+              <option value="active" {% if sprint.status == 'active' %}selected{% endif %}>Active</option>
+              <option value="completed" {% if sprint.status == 'completed' %}selected{% endif %}>Completed</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}System Settings{% endblock %}
+{% block breadcrumb %}System Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:#f472b6;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      CONFIGURATION & THRESHOLDS
+    </div>
+    <h1 class="page-title">System Settings</h1>
+    <p class="page-subtitle">Configure risk classification thresholds, default sprint parameters, and system preferences.</p>
+  </div>
+</div>
+
+<div class="card" style="max-width:800px;">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Risk Thresholds & Default Parameters</div>
+      <div class="card-desc">Values stored in system_settings table and applied across model categorizations.</div>
+    </div>
+  </div>
+
+  <form method="POST" action="{{ url_for('admin.settings') }}">
+    <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+
+      <div class="form-group">
+        <label class="form-label">Low Risk Upper Threshold (%)</label>
+        <input type="number" name="setting_risk_threshold_low" class="form-control" value="{{ settings.get('risk_threshold_low', '25') }}" min="1" max="100" required>
+        <div style="font-size:11px; color:var(--text-dim);">Probabilities below this value are labeled Low risk.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Medium Risk Upper Threshold (%)</label>
+        <input type="number" name="setting_risk_threshold_medium" class="form-control" value="{{ settings.get('risk_threshold_medium', '50') }}" min="1" max="100" required>
+        <div style="font-size:11px; color:var(--text-dim);">Probabilities up to this value are labeled Medium risk.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">High Risk Upper Threshold (%)</label>
+        <input type="number" name="setting_risk_threshold_high" class="form-control" value="{{ settings.get('risk_threshold_high', '75') }}" min="1" max="100" required>
+        <div style="font-size:11px; color:var(--text-dim);">Probabilities exceeding this are labeled Critical risk.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Default Sprint Capacity (Hours)</label>
+        <input type="number" name="setting_default_sprint_capacity" class="form-control" value="{{ settings.get('default_sprint_capacity', '160') }}" min="10" required>
+        <div style="font-size:11px; color:var(--text-dim);">Initial capacity pre-filled when drafting new sprints.</div>
+      </div>
+
+      <div class="form-group full-width">
+        <label class="form-label">Maintenance Mode</label>
+        <select name="setting_maintenance_mode" class="form-control">
+          <option value="false" {% if settings.get('maintenance_mode') != 'true' %}selected{% endif %}>Disabled (Normal Operation)</option>
+          <option value="true" {% if settings.get('maintenance_mode') == 'true' %}selected{% endif %}>Enabled (Read-Only Mode)</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:12px; border-top:1px solid var(--border); padding-top:18px;">
+      <button type="submit" class="btn btn-primary" style="background:#ec4899;border-color:#ec4899;">
+        Save System Settings
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

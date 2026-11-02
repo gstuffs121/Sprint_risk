@@ -1,11 +1,44 @@
-
+# Virtual Environments
 venv/
 .venv/
+env/
+ENV/
+
+# Python Cache & Bytecode
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+
+# Environment Variables & Secrets
 .env
+.env.*
+!.env.example
+
+# Databases & Local Storage
+*.db
+*.sqlite
+*.sqlite3
+sprint_risk.db
+
+# Machine Learning Artifacts
+*.joblib
+*.pkl
+
+# Test & Coverage Artifacts
 .pytest_cache/
 .coverage
 htmlcov/
 *.log
+
+# Operating System & IDE Files
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local CLI Wrappers
+powershell.cmd
+powershell.exe
