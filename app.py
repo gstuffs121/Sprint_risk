@@ -1,3 +1,5 @@
+import os
+import secrets
 from datetime import datetime
 from flask import (
     Flask,
@@ -12,6 +14,7 @@ from flask import (
 from config import Config
 from database import (
     get_db_connection,
+    get_dict_cursor,
     init_db,
     get_active_engine,
     test_db_connection
@@ -19,6 +22,7 @@ from database import (
 
 # Import Blueprints
 from routes.auth import auth_bp, get_current_user
+from routes.projects import projects_bp, index as projects_view
 from routes.dashboard import dashboard_bp, index as dashboard_view, chart_data as chart_data_view
 from routes.sprints import sprints_bp, index as sprints_view
 from routes.tasks import tasks_bp, index as tasks_view
@@ -34,8 +38,6 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 # Ensure secret key and cookie security flags are configured
-import os
-import secrets
 if not app.secret_key:
     app.secret_key = os.getenv("SECRET_KEY") or secrets.token_hex(32)
 
@@ -55,6 +57,7 @@ except Exception as e:
 # =========================================================
 
 app.register_blueprint(auth_bp)
+app.register_blueprint(projects_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(sprints_bp)
 app.register_blueprint(tasks_bp)
@@ -69,12 +72,28 @@ app.register_blueprint(admin_bp)
 
 @app.context_processor
 def inject_globals():
-    """Make current_user and system metadata available across all Jinja templates."""
+    """Make current_user, dynamic navigation datasets, and system metadata available across all Jinja templates."""
     user = get_current_user()
+    active_sprints = []
+    active_projects = []
+    try:
+        conn = get_db_connection()
+        cur = get_dict_cursor(conn)
+        cur.execute("SELECT id, name, status FROM sprints ORDER BY created_at DESC")
+        active_sprints = cur.fetchall()
+        cur.execute("SELECT id, name, key_code FROM projects WHERE status = 'active' ORDER BY name ASC")
+        active_projects = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception:
+        pass
+
     return {
         "current_user": user,
         "is_admin": user.get("role") == "admin" if user else False,
         "active_engine": get_active_engine(),
+        "active_sprints_list": active_sprints,
+        "active_projects_list": active_projects,
         "current_year": datetime.now().year,
         "now": datetime.now()
     }
@@ -104,6 +123,7 @@ def health():
 
 
 # Endpoint aliases for url_for compatibility
+app.add_url_rule("/app/projects", endpoint="projects", view_func=projects_view)
 app.add_url_rule("/app/dashboard", endpoint="dashboard", view_func=dashboard_view)
 app.add_url_rule("/app/sprints", endpoint="sprints", view_func=sprints_view)
 app.add_url_rule("/app/tasks", endpoint="tasks", view_func=tasks_view)

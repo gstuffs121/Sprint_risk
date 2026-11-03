@@ -7,10 +7,12 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -19,7 +21,9 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <a class="brand" href="{{ url_for('dashboard.index') }}">
-          <div class="brand-icon">S</div>
+          <div class="brand-icon">
+            <i data-lucide="zap" style="width:20px;height:20px;stroke-width:2.5;"></i>
+          </div>
           <div class="brand-text">
             Sprint<span>AI</span>
             <span class="brand-subtitle">Risk Intelligence</span>
@@ -31,35 +35,40 @@
         <div class="nav-section-title">Workspace</div>
 
         <a href="{{ url_for('dashboard.index') }}" class="nav-item {% if request.endpoint == 'dashboard.index' or request.endpoint == 'dashboard' %}active{% endif %}">
-          <span class="nav-icon">◫</span>
+          <i data-lucide="layout-dashboard" class="nav-icon-svg"></i>
           <span>Overview</span>
         </a>
 
+        <a href="{{ url_for('projects.index') }}" class="nav-item {% if 'projects' in (request.endpoint or '') %}active{% endif %}">
+          <i data-lucide="folder-kanban" class="nav-icon-svg"></i>
+          <span>Projects</span>
+        </a>
+
         <a href="{{ url_for('sprints.index') }}" class="nav-item {% if 'sprints' in (request.endpoint or '') %}active{% endif %}">
-          <span class="nav-icon">▦</span>
+          <i data-lucide="layers" class="nav-icon-svg"></i>
           <span>Sprints</span>
         </a>
 
         <a href="{{ url_for('tasks.index') }}" class="nav-item {% if 'tasks' in (request.endpoint or '') %}active{% endif %}">
-          <span class="nav-icon">☷</span>
+          <i data-lucide="kanban" class="nav-icon-svg"></i>
           <span>Tasks & Board</span>
         </a>
 
         <a href="{{ url_for('predictions.index') }}" class="nav-item {% if 'predictions' in (request.endpoint or '') %}active{% endif %}">
-          <span class="nav-icon">✳</span>
+          <i data-lucide="cpu" class="nav-icon-svg"></i>
           <span>AI Risk Engine</span>
-          <span class="nav-badge ai-badge">AI</span>
+          <span class="nav-badge ai-badge">ML</span>
         </a>
 
         <a href="{{ url_for('reports.index') }}" class="nav-item {% if 'reports' in (request.endpoint or '') %}active{% endif %}">
-          <span class="nav-icon">▤</span>
+          <i data-lucide="bar-chart-3" class="nav-icon-svg"></i>
           <span>Reports & Analytics</span>
         </a>
 
         {% if is_admin or (current_user and current_user.role == 'admin') %}
-        <div class="nav-section-title" style="margin-top:16px;">Administration</div>
-        <a href="{{ url_for('admin.index') }}" class="nav-item" style="color:#f472b6;">
-          <span class="nav-icon">⚙</span>
+        <div class="nav-section-title" style="margin-top:20px;">Administration</div>
+        <a href="{{ url_for('admin.index') }}" class="nav-item admin-nav-link">
+          <i data-lucide="shield-alert" class="nav-icon-svg" style="color:#f472b6;"></i>
           <span>Admin Portal</span>
           <span class="admin-tag">ADMIN</span>
         </a>
@@ -71,7 +80,7 @@
           <div class="pulse-dot"></div>
           <div class="engine-info">
             <span class="engine-title">AI Engine Active</span>
-            <span class="engine-desc">Random Forest Models Ready</span>
+            <span class="engine-desc">Dual Random Forest Models</span>
           </div>
         </div>
       </div>
@@ -83,7 +92,9 @@
       <!-- TOPBAR -->
       <header class="topbar">
         <div class="topbar-left">
-          <button class="menu-toggle" id="menuToggle" aria-label="Toggle Navigation">☰</button>
+          <button class="menu-toggle" id="menuToggle" aria-label="Toggle Navigation">
+            <i data-lucide="menu" style="width:18px;height:18px;"></i>
+          </button>
           <div class="breadcrumbs">
             <span>SprintAI</span>
             <span class="divider">/</span>
@@ -95,12 +106,13 @@
           <!-- System Status -->
           <div class="system-status-indicator">
             <span class="status-dot"></span>
-            <span>Online</span>
+            <span style="font-family:var(--font-mono);font-size:11px;">{{ active_engine|upper }}</span>
           </div>
 
           <!-- Quick Action Button -->
-          <button class="btn btn-secondary btn-sm" data-modal-target="quickTaskModal">
-            + New Task
+          <button class="btn btn-secondary btn-sm" data-modal-target="quickTaskModal" title="Shortcut: Press 'C'">
+            <i data-lucide="plus" style="width:14px;height:14px;"></i>
+            New Task <kbd class="kbd-shortcut">C</kbd>
           </button>
 
           <!-- User Menu -->
@@ -113,8 +125,8 @@
               <span class="user-name">{{ current_user.full_name or current_user.username }}</span>
               <span class="user-role-label">{{ current_user.role }}</span>
             </div>
-            <a href="{{ url_for('auth.logout') }}" title="Sign Out" style="margin-left:8px;font-size:15px;color:var(--text-dim);" onclick="event.stopPropagation();">
-              ⏻
+            <a href="{{ url_for('auth.logout') }}" title="Sign Out" style="margin-left:8px;color:var(--text-dim);" onclick="event.stopPropagation();">
+              <i data-lucide="log-out" style="width:15px;height:15px;"></i>
             </a>
           </div>
           {% else %}
@@ -168,9 +180,13 @@
             <div class="form-group">
               <label class="form-label">Sprint *</label>
               <select name="sprint_id" class="form-control" required>
-                <!-- Populated or fallback default -->
-                <option value="1">Sprint 14 - AI Engine & Analytics</option>
-                <option value="2">Sprint 15 - Core Auth & Admin Portal</option>
+                {% if active_sprints_list and active_sprints_list|length > 0 %}
+                  {% for s in active_sprints_list %}
+                  <option value="{{ s.id }}">{{ s.name }} ({{ s.status|capitalize }})</option>
+                  {% endfor %}
+                {% else %}
+                  <option value="1">Sprint 14 - AI Engine & Analytics</option>
+                {% endif %}
               </select>
             </div>
             <div class="form-group">
@@ -219,6 +235,11 @@
   </div>
 
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script>
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

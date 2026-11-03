@@ -7,10 +7,11 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="admin-body">
   <div class="app-shell">
@@ -19,7 +20,9 @@
     <aside class="sidebar admin-sidebar" id="sidebar">
       <div class="sidebar-header">
         <a class="brand" href="{{ url_for('admin.index') }}">
-          <div class="brand-icon admin-icon">⚙</div>
+          <div class="brand-icon admin-icon">
+            <i data-lucide="shield" style="width:20px;height:20px;"></i>
+          </div>
           <div class="brand-text">
             Sprint<span>AI</span>
             <span class="brand-subtitle">Control Center <span class="admin-tag">ADMIN</span></span>
@@ -31,49 +34,54 @@
         <div class="nav-section-title">Administration</div>
 
         <a href="{{ url_for('admin.index') }}" class="nav-item {% if request.endpoint == 'admin.index' %}active{% endif %}">
-          <span class="nav-icon">📊</span>
+          <i data-lucide="activity" class="nav-icon-svg"></i>
           <span>Admin Overview</span>
         </a>
 
         <a href="{{ url_for('admin.users') }}" class="nav-item {% if request.endpoint == 'admin.users' %}active{% endif %}">
-          <span class="nav-icon">👥</span>
+          <i data-lucide="users" class="nav-icon-svg"></i>
           <span>User Management</span>
         </a>
 
+        <a href="{{ url_for('admin.projects') }}" class="nav-item {% if request.endpoint == 'admin.projects' %}active{% endif %}">
+          <i data-lucide="folder-kanban" class="nav-icon-svg"></i>
+          <span>Project Oversight</span>
+        </a>
+
         <a href="{{ url_for('admin.sprints') }}" class="nav-item {% if request.endpoint == 'admin.sprints' %}active{% endif %}">
-          <span class="nav-icon">▦</span>
+          <i data-lucide="layers" class="nav-icon-svg"></i>
           <span>Sprint Oversight</span>
         </a>
 
         <a href="{{ url_for('admin.tasks') }}" class="nav-item {% if request.endpoint == 'admin.tasks' %}active{% endif %}">
-          <span class="nav-icon">☷</span>
+          <i data-lucide="check-square" class="nav-icon-svg"></i>
           <span>Task Oversight</span>
         </a>
 
         <a href="{{ url_for('admin.ai_monitoring') }}" class="nav-item {% if 'admin.ai' in (request.endpoint or '') %}active{% endif %}">
-          <span class="nav-icon">🧠</span>
+          <i data-lucide="cpu" class="nav-icon-svg"></i>
           <span>AI & Models</span>
           <span class="nav-badge ai-badge">ML</span>
         </a>
 
         <a href="{{ url_for('admin.logs') }}" class="nav-item {% if request.endpoint == 'admin.logs' %}active{% endif %}">
-          <span class="nav-icon">📜</span>
+          <i data-lucide="file-text" class="nav-icon-svg"></i>
           <span>Audit Logs</span>
         </a>
 
         <a href="{{ url_for('admin.system_health') }}" class="nav-item {% if request.endpoint == 'admin.system_health' %}active{% endif %}">
-          <span class="nav-icon">💚</span>
+          <i data-lucide="heart-pulse" class="nav-icon-svg"></i>
           <span>System Health</span>
         </a>
 
         <a href="{{ url_for('admin.settings') }}" class="nav-item {% if request.endpoint == 'admin.settings' %}active{% endif %}">
-          <span class="nav-icon">⚙</span>
+          <i data-lucide="settings" class="nav-icon-svg"></i>
           <span>System Settings</span>
         </a>
 
-        <div class="nav-section-title" style="margin-top:24px;">Quick Switch</div>
+        <div class="nav-section-title" style="margin-top:24px;">Workspace</div>
         <a href="{{ url_for('dashboard.index') }}" class="nav-item" style="color:var(--accent);">
-          <span class="nav-icon">↩</span>
+          <i data-lucide="arrow-left" class="nav-icon-svg"></i>
           <span>User Workspace</span>
         </a>
       </nav>
@@ -83,7 +91,7 @@
           <div class="pulse-dot" style="background:#ec4899; box-shadow:0 0 0 4px rgba(236, 72, 153, 0.2);"></div>
           <div class="engine-info">
             <span class="engine-title" style="color:#f472b6;">Admin Mode Active</span>
-            <span class="engine-desc">System-level Authority</span>
+            <span class="engine-desc">System Authority</span>
           </div>
         </div>
       </div>
@@ -95,38 +103,35 @@
       <!-- TOPBAR -->
       <header class="topbar">
         <div class="topbar-left">
-          <button class="menu-toggle" id="menuToggle" aria-label="Toggle Navigation">☰</button>
+          <button class="menu-toggle" id="menuToggle" aria-label="Toggle Navigation">
+            <i data-lucide="menu" style="width:18px;height:18px;"></i>
+          </button>
           <div class="breadcrumbs">
             <span>Admin Portal</span>
             <span class="divider">/</span>
-            <strong>{% block breadcrumb %}Dashboard{% endblock %}</strong>
+            <strong>{% block breadcrumb %}Overview{% endblock %}</strong>
           </div>
         </div>
 
         <div class="topbar-right">
-          <div class="system-status-indicator" style="background:rgba(236, 72, 153, 0.1); border-color:rgba(236, 72, 153, 0.3); color:#f472b6;">
-            <span class="status-dot" style="background:#ec4899;"></span>
-            <span>Database: {{ active_engine|upper }}</span>
-          </div>
-
+          <!-- Switch back to app -->
           <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary btn-sm">
-            Exit to Workspace
+            &larr; Switch to User Workspace
           </a>
 
-          {% if current_user and current_user.is_authenticated %}
+          <!-- User Menu -->
           <div class="user-profile-menu">
             <div class="avatar-circle" style="background:linear-gradient(135deg, #ec4899, #8b5cf6);">
               {{ (current_user.full_name or current_user.username)[:2]|upper }}
             </div>
             <div class="user-meta">
               <span class="user-name">{{ current_user.full_name or current_user.username }}</span>
-              <span class="user-role-label" style="color:#f472b6;">{{ current_user.role }}</span>
+              <span class="user-role-label" style="color:#f472b6; background:rgba(236,72,153,0.15);">Administrator</span>
             </div>
-            <a href="{{ url_for('auth.logout') }}" title="Sign Out" style="margin-left:8px;font-size:15px;color:var(--text-dim);">
-              ⏻
+            <a href="{{ url_for('auth.logout') }}" title="Sign Out" style="margin-left:8px;color:var(--text-dim);" onclick="event.stopPropagation();">
+              <i data-lucide="log-out" style="width:15px;height:15px;"></i>
             </a>
           </div>
-          {% endif %}
         </div>
       </header>
 
@@ -146,7 +151,7 @@
         {% endwith %}
       </div>
 
-      <!-- MAIN PAGE CONTAINER -->
+      <!-- MAIN PAGE CONTENT -->
       <main class="page-container">
         {% block content %}{% endblock %}
       </main>
@@ -155,6 +160,11 @@
   </div>
 
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script>
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

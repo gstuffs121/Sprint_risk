@@ -9,6 +9,13 @@ or:
 import argparse
 import getpass
 import sys
+from pathlib import Path
+
+# Add project root directory to sys.path so modules like database and config can be imported directly
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from werkzeug.security import generate_password_hash
 from database import get_db_connection, get_dict_cursor, init_db, log_audit
 

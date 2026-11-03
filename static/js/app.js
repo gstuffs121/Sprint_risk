@@ -1,6 +1,9 @@
 /**
  * SprintAI Enterprise Frontend Controller
+ * Robust AJAX operations, HTML5 Drag & Drop Kanban, and real-time ML risk simulation.
  */
+
+let draggedTaskId = null;
 
 document.addEventListener("DOMContentLoaded", function () {
   // Mobile sidebar toggle
@@ -55,8 +58,30 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  // Real-time AI Risk Simulator (if present on page)
+  // Global Keyboard Shortcuts
+  document.addEventListener("keydown", function (e) {
+    const activeTag = (document.activeElement.tagName || "").toLowerCase();
+    const isEditing = ["input", "textarea", "select"].includes(activeTag) || document.activeElement.isContentEditable;
+
+    // Press 'c' or 'C' to open quick create task modal
+    if (!isEditing && (e.key === "c" || e.key === "C")) {
+      e.preventDefault();
+      openModal("quickTaskModal");
+    }
+
+    // Press 'Escape' to close all open modals
+    if (e.key === "Escape") {
+      document.querySelectorAll(".modal-overlay.open").forEach((m) => m.classList.remove("open"));
+    }
+  });
+
+  // Real-time AI Risk Simulator
   initAISimulator();
+
+  // Initialize Lucide icons if present
+  if (typeof lucide !== "undefined") {
+    lucide.createIcons();
+  }
 });
 
 // Modal helpers
@@ -64,6 +89,9 @@ function openModal(id) {
   const modal = document.getElementById(id);
   if (modal) {
     modal.classList.add("open");
+    const firstInput = modal.querySelector("input:not([type=hidden]), textarea, select");
+    if (firstInput) firstInput.focus();
+    if (typeof lucide !== "undefined") lucide.createIcons();
   }
 }
 
@@ -74,7 +102,7 @@ function closeModal(id) {
   }
 }
 
-// Toast helper
+// Toast notification helper
 function showToast(message, type = "info") {
   let container = document.querySelector(".toast-container");
   if (!container) {
@@ -98,7 +126,123 @@ function showToast(message, type = "info") {
   }, 4000);
 }
 
-// Interactive Real-Time AI Simulator
+// =========================================================
+// HTML5 DRAG & DROP KANBAN BOARD CONTROLLER
+// =========================================================
+
+function handleDragStart(e) {
+  const card = e.currentTarget;
+  draggedTaskId = card.getAttribute("data-task-id");
+  card.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", draggedTaskId);
+}
+
+function handleDragEnd(e) {
+  const card = e.currentTarget;
+  card.classList.remove("dragging");
+  document.querySelectorAll(".kanban-col").forEach((col) => col.classList.remove("drag-over"));
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  const col = e.currentTarget;
+  if (!col.classList.contains("drag-over")) {
+    col.classList.add("drag-over");
+  }
+}
+
+function handleDragLeave(e) {
+  const col = e.currentTarget;
+  // Verify we actually left the column
+  if (!col.contains(e.relatedTarget)) {
+    col.classList.remove("drag-over");
+  }
+}
+
+function handleDrop(e, targetStatus) {
+  e.preventDefault();
+  const col = e.currentTarget;
+  col.classList.remove("drag-over");
+
+  const taskId = e.dataTransfer.getData("text/plain") || draggedTaskId;
+  if (!taskId) return;
+
+  const card = document.getElementById("task-card-" + taskId);
+  if (!card) return;
+
+  const currentStatus = card.getAttribute("data-current-status");
+  if (currentStatus === targetStatus) return;
+
+  // Optimistic Move into target dropzone
+  const targetZone = document.getElementById("zone-" + targetStatus);
+  if (targetZone) {
+    const emptyHint = targetZone.querySelector(".kanban-empty-hint");
+    if (emptyHint) emptyHint.remove();
+    targetZone.prepend(card);
+    card.setAttribute("data-current-status", targetStatus);
+
+    // Update the dropdown within the card to match new status
+    const statusSelect = card.querySelector("select");
+    if (statusSelect) statusSelect.value = targetStatus;
+  }
+
+  // Persist to backend via AJAX
+  updateTaskStatus(taskId, targetStatus, false);
+}
+
+// =========================================================
+// TASK STATUS PERSISTENCE (AJAX)
+// =========================================================
+
+function updateTaskStatus(taskId, newStatus, reloadOnSuccess = true) {
+  fetch(`/tasks/${taskId}/update-status`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Requested-With": "XMLHttpRequest"
+    },
+    body: JSON.stringify({ status: newStatus })
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error("Server returned status " + res.status);
+      return res.json();
+    })
+    .then((data) => {
+      if (data.status === "success") {
+        const readable = newStatus.replace("_", " ").toUpperCase();
+        showToast(`Task #${taskId} moved to ${readable}`, "success");
+        updateColumnCounts();
+        if (reloadOnSuccess) {
+          setTimeout(() => window.location.reload(), 400);
+        }
+      } else {
+        showToast(data.message || "Failed to update task", "danger");
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+      showToast("Error persisting task status: " + err.message, "danger");
+    });
+}
+
+function updateColumnCounts() {
+  document.querySelectorAll(".kanban-col").forEach((col) => {
+    const status = col.getAttribute("data-column-status");
+    const countBadge = col.querySelector(".col-count");
+    const dropzone = col.querySelector(".kanban-dropzone");
+    if (dropzone && countBadge) {
+      const cards = dropzone.querySelectorAll(".kanban-card");
+      countBadge.textContent = cards.length;
+    }
+  });
+}
+
+// =========================================================
+// REAL-TIME ML PREDICTION SIMULATOR
+// =========================================================
+
 function initAISimulator() {
   const simForm = document.getElementById("aiSimulatorForm");
   if (!simForm) return;
@@ -120,11 +264,11 @@ function initAISimulator() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       const payload = {
-        complexity: complexitySlider ? complexitySlider.value : 3,
+        complexity: complexitySlider ? parseInt(complexitySlider.value) : 3,
         priority: prioritySelect ? prioritySelect.value : "Medium",
-        dependencies: dependenciesSlider ? dependenciesSlider.value : 1,
-        days_remaining: daysSlider ? daysSlider.value : 7,
-        team_workload: workloadSlider ? workloadSlider.value : 50
+        dependencies: dependenciesSlider ? parseInt(dependenciesSlider.value) : 1,
+        days_remaining: daysSlider ? parseInt(daysSlider.value) : 7,
+        team_workload: workloadSlider ? parseInt(workloadSlider.value) : 50
       };
 
       fetch("/api/predict", {
@@ -158,7 +302,7 @@ function initAISimulator() {
           }
         })
         .catch((err) => console.error("Simulator API error:", err));
-    }, 150);
+    }, 120);
   }
 
   // Update slider labels and trigger simulation on change
@@ -178,30 +322,4 @@ function initAISimulator() {
 
   // Initial call
   runSimulation();
-}
-
-// Kanban Status Update via AJAX
-function updateTaskStatus(taskId, newStatus) {
-  fetch(`/tasks/${taskId}/update-status`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Requested-With": "XMLHttpRequest"
-    },
-    body: JSON.stringify({ status: newStatus })
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.status === "success") {
-        showToast(`Task moved to ${newStatus.replace("_", " ").toUpperCase()}`, "success");
-        // Reload after short delay to reflect across all counts and columns
-        setTimeout(() => window.location.reload(), 450);
-      } else {
-        showToast(data.message || "Failed to update task", "danger");
-      }
-    })
-    .catch((err) => {
-      console.error(err);
-      showToast("Error updating task status", "danger");
-    });
 }

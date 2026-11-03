@@ -46,6 +46,10 @@ def index():
         conn = get_db_connection()
         cur = get_dict_cursor(conn)
 
+        # Projects
+        cur.execute("SELECT COUNT(*) AS total FROM projects")
+        total_projects = cur.fetchone()["total"]
+
         # Users
         cur.execute("SELECT COUNT(*) AS total FROM users")
         total_users = cur.fetchone()["total"]
@@ -109,6 +113,7 @@ def index():
         return render_template(
             "admin/dashboard.html",
             user=user,
+            total_projects=total_projects,
             total_users=total_users,
             active_users=active_users,
             total_sprints=total_sprints,
@@ -130,6 +135,7 @@ def index():
         return render_template(
             "admin/dashboard.html",
             user=user,
+            total_projects=0,
             total_users=0,
             active_users=0,
             total_sprints=0,
@@ -185,7 +191,7 @@ def users():
             params.append(int(status_f))
 
         query += " ORDER BY created_at DESC"
-        cur.execute(query, tuple(params))
+        cur.execute(query, tuple(params) if params else None)
         user_list = cur.fetchall()
 
         return render_template(
@@ -353,6 +359,39 @@ def delete_user(user_id):
 
 
 # -------------------------------------------------------------
+# 2.5 PROJECT OVERSIGHT
+# -------------------------------------------------------------
+@admin_bp.route("/projects")
+def projects():
+    user = get_current_user()
+    conn = get_db_connection()
+    cur = get_dict_cursor(conn)
+    try:
+        cur.execute("""
+            SELECT p.*, u.username AS owner_username,
+                   COUNT(DISTINCT s.id) AS sprint_count,
+                   COUNT(t.id) AS task_count,
+                   COALESCE(SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_tasks
+            FROM projects p
+            LEFT JOIN users u ON p.owner_id = u.id
+            LEFT JOIN sprints s ON p.id = s.project_id
+            LEFT JOIN tasks t ON s.id = t.sprint_id
+            GROUP BY p.id, p.name, p.key_code, p.description, p.status, p.owner_id, p.created_at, u.username
+            ORDER BY p.created_at DESC
+        """)
+        proj_list = cur.fetchall()
+        for p in proj_list:
+            t_cnt = p.get("task_count", 0)
+            c_cnt = p.get("completed_tasks", 0)
+            p["progress"] = round((c_cnt / t_cnt * 100), 1) if t_cnt > 0 else 0
+
+        return render_template("admin/projects.html", user=user, projects=proj_list)
+    finally:
+        cur.close()
+        conn.close()
+
+
+# -------------------------------------------------------------
 # 3. SPRINT MONITORING
 # -------------------------------------------------------------
 @admin_bp.route("/sprints")
@@ -362,15 +401,16 @@ def sprints():
     cur = get_dict_cursor(conn)
     try:
         cur.execute("""
-            SELECT s.*, u.username AS creator_username,
+            SELECT s.*, u.username AS creator_username, p_proj.key_code AS project_key,
                    COUNT(t.id) AS task_count,
                    COALESCE(SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_count,
                    COALESCE(SUM(CASE WHEN t.is_delayed = 1 THEN 1 ELSE 0 END), 0) AS delayed_count,
                    COALESCE(SUM(t.estimated_hours), 0) AS total_est_hours
             FROM sprints s
             LEFT JOIN users u ON s.created_by = u.id
+            LEFT JOIN projects p_proj ON s.project_id = p_proj.id
             LEFT JOIN tasks t ON s.id = t.sprint_id
-            GROUP BY s.id, s.name, s.goal, s.start_date, s.end_date, s.capacity_hours, s.status, s.created_by, s.created_at, u.username
+            GROUP BY s.id, s.project_id, s.name, s.goal, s.start_date, s.end_date, s.capacity_hours, s.status, s.created_by, s.created_at, u.username, p_proj.key_code
             ORDER BY s.created_at DESC
         """)
         sprint_list = cur.fetchall()
@@ -527,7 +567,7 @@ def logs():
             query += " AND (action LIKE %s OR details LIKE %s OR username LIKE %s)"
             params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%"])
         query += " ORDER BY created_at DESC LIMIT 100"
-        cur.execute(query, tuple(params))
+        cur.execute(query, tuple(params) if params else None)
         log_list = cur.fetchall()
         return render_template("admin/logs.html", user=user, logs=log_list, search_q=search_q)
     finally:
@@ -556,8 +596,8 @@ def system_health():
         active_db = test_db_connection()
         conn = get_db_connection()
         cur = get_dict_cursor(conn)
-        ALLOWED_TABLES = {"users", "sprints", "tasks", "predictions", "audit_logs", "system_settings"}
-        for tbl in ["users", "sprints", "tasks", "predictions", "audit_logs", "system_settings"]:
+        ALLOWED_TABLES = {"users", "projects", "sprints", "tasks", "predictions", "audit_logs", "system_settings"}
+        for tbl in ["users", "projects", "sprints", "tasks", "predictions", "audit_logs", "system_settings"]:
             if tbl in ALLOWED_TABLES:
                 cur.execute(f"SELECT COUNT(*) AS total FROM {tbl}")
             table_counts[tbl] = cur.fetchone()["total"]

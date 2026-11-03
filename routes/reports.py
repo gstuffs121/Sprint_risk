@@ -22,6 +22,10 @@ def index():
         conn = get_db_connection()
         cur = get_dict_cursor(conn)
 
+        # 0. Projects Summary
+        cur.execute("SELECT COUNT(*) AS total FROM projects")
+        total_projects = cur.fetchone()["total"]
+
         # 1. Overall Task Statistics
         cur.execute("""
             SELECT
@@ -71,14 +75,16 @@ def index():
                 s.end_date,
                 s.capacity_hours,
                 s.created_at,
+                p_proj.key_code AS project_key,
                 COUNT(t.id) AS task_count,
                 COALESCE(SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_count,
                 COALESCE(SUM(CASE WHEN t.is_delayed = 1 THEN 1 ELSE 0 END), 0) AS delayed_count,
                 COALESCE(SUM(t.estimated_hours), 0) AS total_est_hours,
                 COALESCE(SUM(t.actual_hours), 0) AS total_act_hours
             FROM sprints s
+            LEFT JOIN projects p_proj ON s.project_id = p_proj.id
             LEFT JOIN tasks t ON s.id = t.sprint_id
-            GROUP BY s.id, s.name, s.status, s.start_date, s.end_date, s.capacity_hours, s.created_at
+            GROUP BY s.id, s.project_id, s.name, s.status, s.start_date, s.end_date, s.capacity_hours, s.created_at, p_proj.key_code
             ORDER BY s.created_at DESC
         """)
         sprint_stats = cur.fetchall()
@@ -99,17 +105,12 @@ def index():
                 COALESCE(SUM(CASE WHEN is_delayed = 1 THEN 1 ELSE 0 END), 0) AS delayed_count
             FROM tasks
             GROUP BY priority
-            ORDER BY CASE priority
-                WHEN 'Critical' THEN 1
-                WHEN 'High' THEN 2
-                WHEN 'Medium' THEN 3
-                ELSE 4
-            END
         """)
         priority_breakdown = cur.fetchall()
         for p in priority_breakdown:
-            p_tot = p["total"]
-            p["delay_rate"] = round((p["delayed_count"] / p_tot * 100), 1) if p_tot > 0 else 0
+            tot = p.get("total", 0)
+            dl = p.get("delayed_count", 0)
+            p["delay_rate"] = round((dl / tot * 100), 1) if tot > 0 else 0
 
         # 5. Complexity Breakdown
         cur.execute("""
@@ -123,12 +124,14 @@ def index():
         """)
         complexity_breakdown = cur.fetchall()
         for c in complexity_breakdown:
-            c_tot = c["total"]
-            c["delay_rate"] = round((c["delayed_count"] / c_tot * 100), 1) if c_tot > 0 else 0
+            tot = c.get("total", 0)
+            dl = c.get("delayed_count", 0)
+            c["delay_rate"] = round((dl / tot * 100), 1) if tot > 0 else 0
 
         return render_template(
             "reports.html",
             user=user,
+            total_projects=total_projects,
             task_stats=task_stats,
             prediction_stats=prediction_stats,
             sprint_stats=sprint_stats,
@@ -137,13 +140,24 @@ def index():
         )
 
     except Exception as e:
-        print("Reports Load Error:", e)
-        flash("Unable to generate reports: " + str(e), "danger")
+        print("Reports Error:", e)
+        flash("Failed to generate analytics report: " + str(e), "danger")
         return render_template(
             "reports.html",
             user=user,
-            task_stats={"total_tasks": 0, "completed_tasks": 0, "delayed_tasks": 0, "completion_rate": 0, "variance_hours": 0},
-            prediction_stats={"total_predictions": 0, "average_risk": 0},
+            total_projects=0,
+            task_stats={
+                "total_tasks": 0,
+                "completed_tasks": 0,
+                "in_progress_tasks": 0,
+                "blocked_tasks": 0,
+                "delayed_tasks": 0,
+                "completion_rate": 0,
+                "total_estimated_hours": 0,
+                "total_actual_hours": 0,
+                "variance_hours": 0
+            },
+            prediction_stats={"total_predictions": 0, "average_risk": 0, "average_predicted_hours": 0},
             sprint_stats=[],
             priority_breakdown=[],
             complexity_breakdown=[]
@@ -155,6 +169,7 @@ def index():
             conn.close()
 
 
+@reports_bp.route("/reports/export")
 @reports_bp.route("/reports/export-sprints")
 def export_sprints_csv():
     conn = get_db_connection()

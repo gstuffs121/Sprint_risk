@@ -19,19 +19,39 @@
     </p>
   </div>
   <div class="header-actions">
+    <a href="{{ url_for('projects.index') }}" class="btn btn-secondary">
+      <i data-lucide="folder-kanban" style="width:15px;height:15px;"></i>
+      Projects
+    </a>
     <a href="{{ url_for('predictions.index') }}" class="btn btn-primary">
-      ✳ Run AI Prediction
+      <i data-lucide="sparkles" style="width:15px;height:15px;"></i>
+      Run AI Prediction
     </a>
   </div>
 </div>
 
 <!-- KEY PERFORMANCE INDICATORS -->
-<div class="stat-grid">
+<div class="stat-grid" style="grid-template-columns: repeat(5, 1fr);">
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Projects</span>
+      <div class="stat-icon-wrap indigo">
+        <i data-lucide="folder-git-2" style="width:16px;height:16px;"></i>
+      </div>
+    </div>
+    <div class="stat-value">{{ total_projects }}</div>
+    <div class="stat-footnote">
+      <a href="{{ url_for('projects.index') }}" style="color:var(--primary);font-weight:600;">View Portfolio &rarr;</a>
+    </div>
+  </div>
 
   <div class="stat-card">
     <div class="stat-top">
       <span class="stat-label">Sprints</span>
-      <div class="stat-icon-wrap indigo">▦</div>
+      <div class="stat-icon-wrap cyan">
+        <i data-lucide="layers" style="width:16px;height:16px;"></i>
+      </div>
     </div>
     <div class="stat-value">{{ total_sprints }}</div>
     <div class="stat-footnote">
@@ -42,18 +62,22 @@
   <div class="stat-card">
     <div class="stat-top">
       <span class="stat-label">Total Tasks</span>
-      <div class="stat-icon-wrap cyan">☷</div>
+      <div class="stat-icon-wrap green">
+        <i data-lucide="check-square" style="width:16px;height:16px;"></i>
+      </div>
     </div>
     <div class="stat-value">{{ total_tasks }}</div>
     <div class="stat-footnote">
-      <span style="color:var(--success);font-weight:600;">{{ completed_tasks }} Done</span> &bull; {{ in_progress_tasks }} In Progress
+      <span style="color:var(--success);font-weight:600;">{{ completed_tasks }} Done</span> &bull; {{ in_progress_tasks }} In Flight
     </div>
   </div>
 
   <div class="stat-card">
     <div class="stat-top">
       <span class="stat-label">Delayed & Overdue</span>
-      <div class="stat-icon-wrap red">!</div>
+      <div class="stat-icon-wrap red">
+        <i data-lucide="alert-triangle" style="width:16px;height:16px;"></i>
+      </div>
     </div>
     <div class="stat-value" style="color:var(--danger);">{{ delayed_tasks }}</div>
     <div class="stat-footnote">
@@ -64,9 +88,11 @@
   <div class="stat-card">
     <div class="stat-top">
       <span class="stat-label">Estimated Effort</span>
-      <div class="stat-icon-wrap amber">◷</div>
+      <div class="stat-icon-wrap amber">
+        <i data-lucide="clock" style="width:16px;height:16px;"></i>
+      </div>
     </div>
-    <div class="stat-value">{{ estimated_hours }}<small style="font-size:16px;color:var(--text-dim);font-weight:500;"> hrs</small></div>
+    <div class="stat-value">{{ estimated_hours }}<small style="font-size:14px;color:var(--text-dim);font-weight:500;"> hrs</small></div>
     <div class="stat-footnote">
       <span style="color:var(--text-main);font-weight:600;">{{ actual_hours }} hrs</span> recorded actual
     </div>
@@ -79,15 +105,15 @@
 <div class="card" style="border-left: 4px solid var(--danger); margin-bottom: 24px; background: rgba(239, 68, 68, 0.05);">
   <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
     <div style="display:flex; align-items:center; gap:14px;">
-      <div style="width:38px;height:38px;border-radius:var(--radius-sm);background:var(--danger-soft);color:var(--danger);display:grid;place-items:center;font-size:20px;font-weight:800;">
-        ⚠
+      <div style="width:38px;height:38px;border-radius:var(--radius-sm);background:var(--danger-soft);color:var(--danger);display:grid;place-items:center;font-size:18px;">
+        <i data-lucide="alert-octagon" style="width:20px;height:20px;"></i>
       </div>
       <div>
         <div style="font-weight:700;font-size:15px;color:var(--text-main);">
           AI Risk Alert: {{ risk_alerts|length }} critical task{% if risk_alerts|length > 1 %}s{% endif %} require immediate attention
         </div>
         <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">
-          Machine learning models detected elevated probability of delivery delay.
+          Machine learning models detected elevated probability of delivery delay based on complexity and dependency load.
         </div>
       </div>
     </div>
@@ -149,9 +175,16 @@
       {% for s in recent_sprints[:3] %}
       <div style="padding:14px; background:rgba(0,0,0,0.2); border-radius:var(--radius-sm); border:1px solid var(--border);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <a href="{{ url_for('sprints.detail', sprint_id=s.id) }}" style="font-weight:700; font-size:14px; color:var(--text-main);">
-            {{ s.name }}
-          </a>
+          <div style="display:flex; align-items:center; gap:8px;">
+            {% if s.project_key %}
+            <span style="font-size:10.5px; font-weight:800; color:var(--primary); background:var(--primary-soft); padding:2px 6px; border-radius:4px; font-family:var(--font-mono);">
+              {{ s.project_key }}
+            </span>
+            {% endif %}
+            <a href="{{ url_for('sprints.detail', sprint_id=s.id) }}" style="font-weight:700; font-size:14px; color:var(--text-main);">
+              {{ s.name }}
+            </a>
+          </div>
           <span class="badge badge-{{ s.status|lower }}">{{ s.status|capitalize }}</span>
         </div>
         <div style="font-size:12px; color:var(--text-dim); margin-bottom:10px;">
@@ -200,7 +233,14 @@
           {% for t in recent_tasks[:5] %}
           <tr>
             <td>
-              <div class="table-primary-text">{{ t.title }}</div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                {% if t.project_key %}
+                <span style="font-size:10px; font-weight:700; color:var(--primary); font-family:var(--font-mono);">
+                  {{ t.project_key }}-{{ t.id }}
+                </span>
+                {% endif %}
+                <div class="table-primary-text">{{ t.title }}</div>
+              </div>
               <div style="font-size:11px;color:var(--text-dim);">{{ t.assignee or 'Unassigned' }} &bull; {{ t.estimated_hours }}h</div>
             </td>
             <td>

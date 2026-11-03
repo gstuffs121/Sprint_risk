@@ -23,10 +23,25 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------
+-- Table: projects
+-- ---------------------------------------------------------
+CREATE TABLE IF NOT EXISTS projects (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    key_code VARCHAR(20) NOT NULL UNIQUE,
+    description TEXT,
+    status VARCHAR(30) NOT NULL DEFAULT 'active',
+    owner_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_projects_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------
 -- Table: sprints
 -- ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS sprints (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    project_id INT NULL,
     name VARCHAR(150) NOT NULL,
     goal TEXT,
     start_date DATE NOT NULL,
@@ -35,7 +50,8 @@ CREATE TABLE IF NOT EXISTS sprints (
     status VARCHAR(50) NOT NULL DEFAULT 'planning',
     created_by INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_sprints_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    CONSTRAINT fk_sprints_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_sprints_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------
@@ -97,16 +113,3 @@ CREATE TABLE IF NOT EXISTS system_settings (
     key_value TEXT NOT NULL,
     description VARCHAR(255) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ---------------------------------------------------------
--- Default Configuration Settings
--- (No hardcoded or predictable user accounts are seeded)
--- ---------------------------------------------------------
-INSERT INTO system_settings (key_name, key_value, description)
-VALUES
-('risk_threshold_low', '25', 'Upper probability limit for Low risk (percent)'),
-('risk_threshold_medium', '50', 'Upper probability limit for Medium risk (percent)'),
-('risk_threshold_high', '75', 'Upper probability limit for High risk (percent)'),
-('default_sprint_capacity', '160', 'Default capacity in hours for new sprints'),
-('maintenance_mode', 'false', 'Enable maintenance mode')
-ON DUPLICATE KEY UPDATE key_name=key_name;

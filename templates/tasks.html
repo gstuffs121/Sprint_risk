@@ -10,23 +10,23 @@
       TASK MANAGEMENT & KANBAN
     </div>
     <h1 class="page-title">Tasks & Work Items</h1>
-    <p class="page-subtitle">Track delivery progress across columns, update status, and manage dependencies.</p>
+    <p class="page-subtitle">Track delivery progress across agile columns, drag and drop cards to update status, and inspect AI risk forecasts.</p>
   </div>
   <div class="header-actions">
     <!-- View Switcher -->
     <div style="background:rgba(255,255,255,0.06); padding:3px; border-radius:var(--radius-sm); display:flex; gap:4px;">
       <a href="{{ url_for('tasks.index', view='board', sprint_id=selected_sprint, status=selected_status, priority=selected_priority) }}"
          class="btn btn-sm {% if view_mode == 'board' %}btn-primary{% else %}btn-secondary{% endif %}" style="padding:4px 10px;">
-        ◫ Board
+        <i data-lucide="kanban" style="width:13px;height:13px;"></i> Board
       </a>
       <a href="{{ url_for('tasks.index', view='table', sprint_id=selected_sprint, status=selected_status, priority=selected_priority) }}"
          class="btn btn-sm {% if view_mode == 'table' %}btn-primary{% else %}btn-secondary{% endif %}" style="padding:4px 10px;">
-        ☰ Table
+        <i data-lucide="table" style="width:13px;height:13px;"></i> Table
       </a>
     </div>
 
     <button class="btn btn-primary" data-modal-target="quickTaskModal">
-      + Create Task
+      <i data-lucide="plus" style="width:14px;height:14px;"></i> Create Task
     </button>
   </div>
 </div>
@@ -36,31 +36,39 @@
   <div class="stat-card">
     <div class="stat-top">
       <span class="stat-label">Total Tasks</span>
-      <div class="stat-icon-wrap indigo">☷</div>
+      <div class="stat-icon-wrap indigo">
+        <i data-lucide="list-todo" style="width:16px;height:16px;"></i>
+      </div>
     </div>
     <div class="stat-value">{{ total_tasks }}</div>
     <div class="stat-footnote">{{ in_progress_count }} active in flight</div>
   </div>
   <div class="stat-card">
     <div class="stat-top">
-      <span class="stat-label">Completed</span>
-      <div class="stat-icon-wrap green">✓</div>
+      <span class="stat-label">Done</span>
+      <div class="stat-icon-wrap green">
+        <i data-lucide="check-circle-2" style="width:16px;height:16px;"></i>
+      </div>
     </div>
     <div class="stat-value" style="color:var(--success);">{{ completed_count }}</div>
-    <div class="stat-footnote">Successfully resolved</div>
+    <div class="stat-footnote">Resolved delivery items</div>
   </div>
   <div class="stat-card">
     <div class="stat-top">
-      <span class="stat-label">Blocked & Delayed</span>
-      <div class="stat-icon-wrap red">!</div>
+      <span class="stat-label">Blocked / At Risk</span>
+      <div class="stat-icon-wrap red">
+        <i data-lucide="alert-octagon" style="width:16px;height:16px;"></i>
+      </div>
     </div>
     <div class="stat-value" style="color:var(--danger);">{{ blocked_count }} / {{ delayed_count }}</div>
-    <div class="stat-footnote">Requires team intervention</div>
+    <div class="stat-footnote">Blocked or AI flagged delay</div>
   </div>
   <div class="stat-card">
     <div class="stat-top">
       <span class="stat-label">Total Effort</span>
-      <div class="stat-icon-wrap amber">◷</div>
+      <div class="stat-icon-wrap amber">
+        <i data-lucide="clock" style="width:16px;height:16px;"></i>
+      </div>
     </div>
     <div class="stat-value">{{ total_estimated }}<small style="font-size:14px;color:var(--text-dim);"> / {{ total_actual }}h</small></div>
     <div class="stat-footnote">Estimated vs recorded actual</div>
@@ -95,8 +103,10 @@
       <!-- Status Filter -->
       <select name="status" class="form-control" style="padding:6px 12px; font-size:12.5px; width:140px;" onchange="this.form.submit()">
         <option value="">All Statuses</option>
+        <option value="backlog" {% if selected_status == 'backlog' %}selected{% endif %}>Backlog</option>
         <option value="todo" {% if selected_status == 'todo' %}selected{% endif %}>To Do</option>
         <option value="in_progress" {% if selected_status == 'in_progress' %}selected{% endif %}>In Progress</option>
+        <option value="review" {% if selected_status == 'review' %}selected{% endif %}>Review</option>
         <option value="blocked" {% if selected_status == 'blocked' %}selected{% endif %}>Blocked</option>
         <option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>Completed</option>
       </select>
@@ -116,75 +126,97 @@
 <!-- CONDITIONAL VIEW: KANBAN BOARD OR DATA TABLE -->
 {% if view_mode == 'board' %}
 
-<!-- KANBAN BOARD VIEW -->
-<div class="kanban-board">
+<!-- KANBAN BOARD VIEW (5 STANDARD AGILE COLUMNS WITH DRAG & DROP) -->
+<div class="kanban-board" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:14px; overflow-x:auto; padding-bottom:14px;">
 
-  <!-- COLUMN: TO DO -->
-  <div class="kanban-col">
+  <!-- COLUMN 1: BACKLOG -->
+  <div class="kanban-col" data-column-status="backlog" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'backlog')">
+    <div class="kanban-header">
+      <div class="col-title" style="color:var(--text-dim);">
+        <i data-lucide="archive" style="width:13px;height:13px;"></i>
+        <span>Backlog</span>
+        <span class="col-count">{{ kanban.backlog|length }}</span>
+      </div>
+    </div>
+    <div class="kanban-dropzone" id="zone-backlog">
+      {% for t in kanban.backlog %}
+        {% include "partials/kanban_card.html" %}
+      {% else %}
+        <div class="kanban-empty-hint">Drop items here</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- COLUMN 2: TO DO -->
+  <div class="kanban-col" data-column-status="todo" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'todo')">
     <div class="kanban-header">
       <div class="col-title" style="color:var(--text-muted);">
+        <i data-lucide="circle" style="width:13px;height:13px;"></i>
         <span>To Do</span>
         <span class="col-count">{{ kanban.todo|length }}</span>
       </div>
     </div>
-    {% for t in kanban.todo %}
-      {% include "partials/kanban_card.html" %}
-    {% else %}
-      <div style="text-align:center; padding:30px 10px; color:var(--text-dim); font-size:12px;">
-        No tasks in queue
-      </div>
-    {% endfor %}
+    <div class="kanban-dropzone" id="zone-todo">
+      {% for t in kanban.todo %}
+        {% include "partials/kanban_card.html" %}
+      {% else %}
+        <div class="kanban-empty-hint">No tasks queued</div>
+      {% endfor %}
+    </div>
   </div>
 
-  <!-- COLUMN: IN PROGRESS -->
-  <div class="kanban-col">
+  <!-- COLUMN 3: IN PROGRESS -->
+  <div class="kanban-col" data-column-status="in_progress" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'in_progress')">
     <div class="kanban-header">
       <div class="col-title" style="color:#818cf8;">
+        <i data-lucide="clock" style="width:13px;height:13px;"></i>
         <span>In Progress</span>
         <span class="col-count" style="color:#818cf8; background:var(--primary-soft);">{{ kanban.in_progress|length }}</span>
       </div>
     </div>
-    {% for t in kanban.in_progress %}
-      {% include "partials/kanban_card.html" %}
-    {% else %}
-      <div style="text-align:center; padding:30px 10px; color:var(--text-dim); font-size:12px;">
-        No active tasks
-      </div>
-    {% endfor %}
+    <div class="kanban-dropzone" id="zone-in_progress">
+      {% for t in kanban.in_progress %}
+        {% include "partials/kanban_card.html" %}
+      {% else %}
+        <div class="kanban-empty-hint">No tasks active</div>
+      {% endfor %}
+    </div>
   </div>
 
-  <!-- COLUMN: BLOCKED -->
-  <div class="kanban-col">
+  <!-- COLUMN 4: REVIEW / BLOCKED -->
+  <div class="kanban-col" data-column-status="review" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'review')">
     <div class="kanban-header">
-      <div class="col-title" style="color:var(--danger);">
-        <span>Blocked / Delayed</span>
-        <span class="col-count" style="color:var(--danger); background:var(--danger-soft);">{{ kanban.blocked|length }}</span>
+      <div class="col-title" style="color:var(--warning);">
+        <i data-lucide="shield-alert" style="width:13px;height:13px;"></i>
+        <span>Review / Blocked</span>
+        <span class="col-count" style="color:var(--warning); background:var(--warning-soft);">{{ kanban.review|length }}</span>
       </div>
     </div>
-    {% for t in kanban.blocked %}
-      {% include "partials/kanban_card.html" %}
-    {% else %}
-      <div style="text-align:center; padding:30px 10px; color:var(--text-dim); font-size:12px;">
-        No blocked tasks
-      </div>
-    {% endfor %}
+    <div class="kanban-dropzone" id="zone-review">
+      {% for t in kanban.review %}
+        {% include "partials/kanban_card.html" %}
+      {% else %}
+        <div class="kanban-empty-hint">No items in review</div>
+      {% endfor %}
+    </div>
   </div>
 
-  <!-- COLUMN: COMPLETED -->
-  <div class="kanban-col">
+  <!-- COLUMN 5: DONE (COMPLETED) -->
+  <div class="kanban-col" data-column-status="completed" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'completed')">
     <div class="kanban-header">
       <div class="col-title" style="color:var(--success);">
-        <span>Completed</span>
+        <i data-lucide="check-circle" style="width:13px;height:13px;"></i>
+        <span>Done</span>
         <span class="col-count" style="color:var(--success); background:var(--success-soft);">{{ kanban.completed|length }}</span>
       </div>
     </div>
-    {% for t in kanban.completed %}
-      {% include "partials/kanban_card.html" %}
-    {% else %}
-      <div style="text-align:center; padding:30px 10px; color:var(--text-dim); font-size:12px;">
-        No completed tasks
-      </div>
-    {% endfor %}
+    <div class="kanban-dropzone" id="zone-completed">
+      {% for t in kanban.completed %}
+        {% include "partials/kanban_card.html" %}
+      {% else %}
+        <div class="kanban-empty-hint">No completed tasks</div>
+      {% endfor %}
+    </div>
   </div>
 
 </div>
@@ -212,50 +244,61 @@
         {% for t in tasks %}
         <tr>
           <td>
-            <div class="table-primary-text">{{ t.title }}</div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              {% if t.project_key %}
+              <span style="font-size:10.5px; font-weight:700; color:var(--primary); font-family:var(--font-mono);">
+                {{ t.project_key }}-{{ t.id }}
+              </span>
+              {% endif %}
+              <div class="table-primary-text">{{ t.title }}</div>
+            </div>
             {% if t.due_date %}
             <div style="font-size:11px;color:var(--text-dim);">Due: {{ t.due_date }}</div>
             {% endif %}
           </td>
           <td>
-            <span style="font-size:12px; color:var(--text-muted);">{{ t.sprint_name or 'Unassigned' }}</span>
+            <span style="font-size:12px;color:var(--text-muted);">{{ t.sprint_name }}</span>
           </td>
-          <td>{{ t.assignee or 'Unassigned' }}</td>
+          <td>
+            <span style="font-size:12px;color:var(--text-muted);">{{ t.assignee or 'Unassigned' }}</span>
+          </td>
           <td>
             <span class="badge badge-{{ t.priority|lower }}">{{ t.priority }}</span>
           </td>
           <td>
-            <span style="font-family:var(--font-mono);font-weight:700;">{{ t.complexity }}/5</span>
+            <span style="font-size:12px;font-weight:600;">{{ t.complexity }}/5</span>
           </td>
-          <td>{{ t.estimated_hours }} hrs</td>
           <td>
-            <form action="{{ url_for('tasks.update_status', task_id=t.id) }}" method="POST" style="margin:0;">
-              <select name="status" class="form-control" style="padding:3px 8px;font-size:11.5px;height:auto;" onchange="this.form.submit()">
-                <option value="todo" {% if t.status == 'todo' %}selected{% endif %}>To Do</option>
-                <option value="in_progress" {% if t.status == 'in_progress' %}selected{% endif %}>In Progress</option>
-                <option value="blocked" {% if t.status == 'blocked' %}selected{% endif %}>Blocked</option>
-                <option value="completed" {% if t.status == 'completed' %}selected{% endif %}>Completed</option>
-              </select>
-            </form>
+            <span style="font-size:12px;font-weight:600;">{{ t.estimated_hours }}h</span>
+          </td>
+          <td>
+            <span class="badge badge-{{ t.status|lower|replace('_','-') }}">{{ t.status|replace('_',' ')|capitalize }}</span>
           </td>
           <td>
             {% if t.risk_level %}
-            <span class="badge badge-{{ t.risk_level|lower }}">{{ t.risk_level }} ({{ t.risk_probability }}%)</span>
+            <span class="badge badge-{{ t.risk_level|lower }}">
+              {{ t.risk_level }} ({{ t.risk_probability }}%)
+            </span>
             {% else %}
-            <a href="{{ url_for('predictions.index', task_id=t.id) }}" class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 6px;">
-              ✳ Run AI
-            </a>
+            <a href="{{ url_for('predictions.index', task_id=t.id) }}" style="font-size:11px;color:var(--primary);font-weight:600;">+ Run AI</a>
             {% endif %}
           </td>
           <td style="text-align:right;">
-            <form action="{{ url_for('tasks.delete', task_id=t.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete this task?');">
-              <button type="submit" class="btn btn-danger btn-sm" style="padding:3px 7px;">✕</button>
-            </form>
+            <div style="display:flex;justify-content:flex-end;gap:6px;">
+              <a href="{{ url_for('predictions.index', task_id=t.id) }}" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;" title="AI Prediction">
+                AI
+              </a>
+              <form action="{{ url_for('tasks.delete', task_id=t.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Delete task #{{ t.id }}?');">
+                <button type="submit" class="btn btn-danger btn-sm" style="padding:3px 8px;font-size:11px;">
+                  &times;
+                </button>
+              </form>
+            </div>
           </td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="9" style="text-align:center;padding:36px;color:var(--text-dim);">
+          <td colspan="9" style="text-align:center;padding:32px;color:var(--text-dim);">
             No tasks match the selected filters.
           </td>
         </tr>
@@ -266,4 +309,5 @@
 </div>
 
 {% endif %}
+
 {% endblock %}

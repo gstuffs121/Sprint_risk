@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Projects & Portfolio{% endblock %}
+{% block breadcrumb %}Projects{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+      PORTFOLIO GOVERNANCE
+    </div>
+    <h1 class="page-title">Projects & Initiatives</h1>
+    <p class="page-subtitle">Organize engineering work streams, group agile sprints, and monitor macro delivery health.</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-primary" data-modal-target="createProjectModal">
+      <i data-lucide="plus" style="width:15px;height:15px;"></i>
+      New Project
+    </button>
+  </div>
+</div>
+
+<!-- KPI SUMMARY -->
+<div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Total Projects</span>
+      <div class="stat-icon-wrap indigo">
+        <i data-lucide="folder-git-2" style="width:16px;height:16px;"></i>
+      </div>
+    </div>
+    <div class="stat-value">{{ total_projects }}</div>
+    <div class="stat-footnote">
+      <span style="color:var(--success);font-weight:600;">{{ active_projects }} Active</span> in progress
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Sprint Clusters</span>
+      <div class="stat-icon-wrap cyan">
+        <i data-lucide="layers" style="width:16px;height:16px;"></i>
+      </div>
+    </div>
+    <div class="stat-value">
+      {% set total_sp = namespace(val=0) %}
+      {% for p in projects %}{% set total_sp.val = total_sp.val + (p.sprint_count or 0) %}{% endfor %}
+      {{ total_sp.val }}
+    </div>
+    <div class="stat-footnote">Sprints linked across portfolio</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Total Tasks</span>
+      <div class="stat-icon-wrap amber">
+        <i data-lucide="check-square" style="width:16px;height:16px;"></i>
+      </div>
+    </div>
+    <div class="stat-value">
+      {% set total_tk = namespace(val=0) %}
+      {% for p in projects %}{% set total_tk.val = total_tk.val + (p.task_count or 0) %}{% endfor %}
+      {{ total_tk.val }}
+    </div>
+    <div class="stat-footnote">Work items tracked</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">Delayed Work Items</span>
+      <div class="stat-icon-wrap red">
+        <i data-lucide="alert-triangle" style="width:16px;height:16px;"></i>
+      </div>
+    </div>
+    <div class="stat-value" style="color:var(--danger);">
+      {% set total_dl = namespace(val=0) %}
+      {% for p in projects %}{% set total_dl.val = total_dl.val + (p.delayed_task_count or 0) %}{% endfor %}
+      {{ total_dl.val }}
+    </div>
+    <div class="stat-footnote">Flagged by team or AI</div>
+  </div>
+</div>
+
+<!-- SEARCH & FILTER -->
+<div class="card" style="padding:14px 20px; margin-bottom:24px;">
+  <form method="GET" action="{{ url_for('projects.index') }}" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <select name="status" class="form-control" style="width:160px; padding:6px 12px; font-size:12.5px;" onchange="this.form.submit()">
+        <option value="">All Statuses</option>
+        <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+        <option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>Completed</option>
+        <option value="archived" {% if selected_status == 'archived' %}selected{% endif %}>Archived</option>
+      </select>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:8px;">
+      <input type="text" name="q" class="form-control" placeholder="Search projects or key..." value="{{ search_query }}" style="width:240px; padding:6px 12px;">
+      <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+      {% if search_query or selected_status %}
+      <a href="{{ url_for('projects.index') }}" class="btn btn-sm" style="color:var(--text-dim);">Reset</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- PROJECTS GRID -->
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:20px;">
+  {% for p in projects %}
+  <div class="card card-hover" style="display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden;">
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="padding:4px 10px; background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); border-radius:var(--radius-sm); color:var(--primary); font-family:var(--font-mono); font-weight:800; font-size:12px; letter-spacing:0.5px;">
+            {{ p.key_code }}
+          </div>
+          <span class="badge badge-{{ p.status|lower }}">{{ p.status|capitalize }}</span>
+        </div>
+        <span style="font-size:11px; color:var(--text-dim); font-family:var(--font-mono);">
+          {{ p.created_at[:10] if p.created_at else '' }}
+        </span>
+      </div>
+
+      <h3 style="font-size:17px; font-weight:700; color:var(--text-main); margin-bottom:6px;">
+        <a href="{{ url_for('projects.detail', project_id=p.id) }}" style="color:inherit;">
+          {{ p.name }}
+        </a>
+      </h3>
+
+      <p style="font-size:12.5px; color:var(--text-muted); line-height:1.55; margin-bottom:18px; min-height:38px;">
+        {{ p.description or 'No project description provided. Sprints and tasks can be associated with this initiative.' }}
+      </p>
+
+      <!-- Progress Section -->
+      <div style="margin-bottom:18px;">
+        <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:600; margin-bottom:6px;">
+          <span style="color:var(--text-muted);">Overall Completion</span>
+          <span style="color:var(--primary);">{{ p.progress }}%</span>
+        </div>
+        <div class="progress-bar-wrap" style="height:6px;">
+          <div class="progress-fill" style="width: {{ p.progress }}%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card Footer Stats -->
+    <div style="border-top:1px solid var(--border); padding-top:14px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; gap:16px;">
+        <div style="font-size:12px;">
+          <span style="font-weight:700; color:var(--text-main);">{{ p.sprint_count or 0 }}</span>
+          <span style="color:var(--text-dim);">sprints</span>
+        </div>
+        <div style="font-size:12px;">
+          <span style="font-weight:700; color:var(--text-main);">{{ p.task_count or 0 }}</span>
+          <span style="color:var(--text-dim);">tasks</span>
+        </div>
+        <div style="font-size:12px;">
+          <span style="font-weight:700; color:var(--text-main);">{{ p.total_estimated_hours }}h</span>
+          <span style="color:var(--text-dim);">effort</span>
+        </div>
+      </div>
+
+      <a href="{{ url_for('projects.detail', project_id=p.id) }}" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:11.5px;">
+        Open &rarr;
+      </a>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="grid-column: 1 / -1; text-align:center; padding:50px 20px;">
+    <div style="width:48px;height:48px;border-radius:50%;background:rgba(99,102,241,0.1);color:var(--primary);display:grid;place-items:center;margin:0 auto 16px;">
+      <i data-lucide="folder-plus" style="width:24px;height:24px;"></i>
+    </div>
+    <h3 style="font-size:16px;font-weight:700;color:var(--text-main);margin-bottom:6px;">No projects found</h3>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:20px;max-width:400px;margin-left:auto;margin-right:auto;">
+      Create your first engineering project to organize sprints, work items, and ML effort forecasts.
+    </p>
+    <button class="btn btn-primary" data-modal-target="createProjectModal">
+      + Create Project
+    </button>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- CREATE PROJECT MODAL -->
+<div class="modal-overlay" id="createProjectModal">
+  <div class="modal-window">
+    <div class="modal-header">
+      <h3 class="modal-title">Create New Project</h3>
+      <button class="modal-close" data-modal-close>&times;</button>
+    </div>
+    <form action="{{ url_for('projects.index') }}" method="POST">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label class="form-label">Project Name *</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. SprintAI Engine" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Project Key (2–10 uppercase letters) *</label>
+            <input type="text" name="key_code" class="form-control" placeholder="e.g. SPAI" required maxlength="10" style="text-transform:uppercase;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-control">
+              <option value="active" selected>Active</option>
+              <option value="completed">Completed</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <div class="form-group full-width">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" placeholder="Describe the mission, scope, and engineering deliverables for this project..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">+ Create Project</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

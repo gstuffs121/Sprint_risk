@@ -22,6 +22,10 @@ def index():
         conn = get_db_connection()
         cur = get_dict_cursor(conn)
 
+        # 0. Project metrics
+        cur.execute("SELECT COUNT(*) AS total FROM projects")
+        total_projects = cur.fetchone()["total"]
+
         # 1. Sprint metrics
         cur.execute("SELECT COUNT(*) AS total FROM sprints")
         total_sprints = cur.fetchone()["total"]
@@ -75,12 +79,14 @@ def index():
         # 6. Active / Recent Sprints with calculated progress
         cur.execute("""
             SELECT s.*,
+                p_proj.key_code AS project_key,
                 COUNT(t.id) AS task_count,
                 COALESCE(SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_task_count,
                 COALESCE(SUM(t.estimated_hours), 0) AS allocated_hours
             FROM sprints s
+            LEFT JOIN projects p_proj ON s.project_id = p_proj.id
             LEFT JOIN tasks t ON s.id = t.sprint_id
-            GROUP BY s.id, s.name, s.goal, s.start_date, s.end_date, s.capacity_hours, s.status, s.created_by, s.created_at
+            GROUP BY s.id, s.project_id, s.name, s.goal, s.start_date, s.end_date, s.capacity_hours, s.status, s.created_by, s.created_at, p_proj.key_code
             ORDER BY s.created_at DESC
             LIMIT 5
         """)
@@ -96,10 +102,11 @@ def index():
 
         # 7. Recent Tasks with Sprint name and latest prediction
         cur.execute("""
-            SELECT t.*, s.name AS sprint_name,
+            SELECT t.*, s.name AS sprint_name, p_proj.key_code AS project_key,
                 p.predicted_hours, p.risk_probability, p.risk_level
             FROM tasks t
             LEFT JOIN sprints s ON t.sprint_id = s.id
+            LEFT JOIN projects p_proj ON s.project_id = p_proj.id
             LEFT JOIN (
                 SELECT task_id, predicted_hours, risk_probability, risk_level
                 FROM predictions
@@ -112,9 +119,10 @@ def index():
 
         # 8. High-Risk Tasks Alert List (AI detected critical / high risk or flagged delayed)
         cur.execute("""
-            SELECT t.*, s.name AS sprint_name, p.risk_probability, p.risk_level, p.predicted_hours
+            SELECT t.*, s.name AS sprint_name, p_proj.key_code AS project_key, p.risk_probability, p.risk_level, p.predicted_hours
             FROM tasks t
             LEFT JOIN sprints s ON t.sprint_id = s.id
+            LEFT JOIN projects p_proj ON s.project_id = p_proj.id
             LEFT JOIN (
                 SELECT task_id, risk_probability, risk_level, predicted_hours
                 FROM predictions
@@ -137,6 +145,7 @@ def index():
         return render_template(
             "dashboard.html",
             user=user,
+            total_projects=total_projects,
             total_sprints=total_sprints,
             active_sprints=active_sprints,
             completed_sprints=completed_sprints,
@@ -163,6 +172,7 @@ def index():
         return render_template(
             "dashboard.html",
             user=user,
+            total_projects=0,
             total_sprints=0,
             active_sprints=0,
             completed_sprints=0,

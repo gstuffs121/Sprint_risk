@@ -22,6 +22,7 @@ def index():
     cur = None
 
     if request.method == "POST":
+        project_id = request.form.get("project_id")
         name = request.form.get("name", "").strip()
         goal = request.form.get("goal", "").strip()
         start_date = request.form.get("start_date")
@@ -45,13 +46,16 @@ def index():
                 flash("Sprint end date cannot be earlier than start date.", "danger")
                 return redirect(url_for("sprints.index"))
 
+            proj_id = int(project_id) if project_id and project_id.isdigit() else None
+
             conn = get_db_connection()
             cur = conn.cursor()
 
             cur.execute("""
-                INSERT INTO sprints (name, goal, start_date, end_date, capacity_hours, status, created_by)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO sprints (project_id, name, goal, start_date, end_date, capacity_hours, status, created_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
+                proj_id,
                 name,
                 goal,
                 start_date,
@@ -91,16 +95,24 @@ def index():
         cur = get_dict_cursor(conn)
 
         status_filter = request.args.get("status", "").strip().lower()
+        project_filter = request.args.get("project_id", "").strip()
         search_query = request.args.get("q", "").strip()
+
+        # Load projects for filtering & creation dropdown
+        cur.execute("SELECT id, name, key_code FROM projects ORDER BY name ASC")
+        projects_list = cur.fetchall()
 
         base_query = """
             SELECT s.*,
+                p.name AS project_name,
+                p.key_code AS project_key,
                 COUNT(t.id) AS task_count,
                 COALESCE(SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_tasks,
                 COALESCE(SUM(CASE WHEN t.is_delayed = 1 THEN 1 ELSE 0 END), 0) AS delayed_tasks,
                 COALESCE(SUM(t.estimated_hours), 0) AS allocated_hours,
                 COALESCE(SUM(t.actual_hours), 0) AS actual_hours
             FROM sprints s
+            LEFT JOIN projects p ON s.project_id = p.id
             LEFT JOIN tasks t ON s.id = t.sprint_id
         """
         params = []
@@ -110,19 +122,23 @@ def index():
             where_clauses.append("s.status = %s")
             params.append(status_filter)
 
+        if project_filter and project_filter.isdigit():
+            where_clauses.append("s.project_id = %s")
+            params.append(int(project_filter))
+
         if search_query:
-            where_clauses.append("(s.name LIKE %s OR s.goal LIKE %s)")
-            params.extend([f"%{search_query}%", f"%{search_query}%"])
+            where_clauses.append("(s.name LIKE %s OR s.goal LIKE %s OR p.name LIKE %s OR p.key_code LIKE %s)")
+            params.extend([f"%{search_query}%", f"%{search_query}%", f"%{search_query}%", f"%{search_query}%"])
 
         if where_clauses:
             base_query += " WHERE " + " AND ".join(where_clauses)
 
         base_query += """
-            GROUP BY s.id, s.name, s.goal, s.start_date, s.end_date, s.capacity_hours, s.status, s.created_by, s.created_at
+            GROUP BY s.id, s.project_id, s.name, s.goal, s.start_date, s.end_date, s.capacity_hours, s.status, s.created_by, s.created_at, p.name, p.key_code
             ORDER BY s.created_at DESC
         """
 
-        cur.execute(base_query, tuple(params))
+        cur.execute(base_query, tuple(params) if params else None)
         sprint_list = cur.fetchall()
 
         # Compute percentage stats
@@ -144,10 +160,12 @@ def index():
             user=user,
             sprints=sprint_list,
             sprint_list=sprint_list,
+            projects=projects_list,
             total_sprints=total_sprints,
             active_count=active_count,
             total_capacity=round(total_capacity, 1),
             selected_status=status_filter,
+            selected_project=project_filter,
             search_query=search_query
         )
 
@@ -159,10 +177,12 @@ def index():
             user=user,
             sprints=[],
             sprint_list=[],
+            projects=[],
             total_sprints=0,
             active_count=0,
             total_capacity=0,
             selected_status="",
+            selected_project="",
             search_query=""
         )
     finally:
@@ -182,7 +202,12 @@ def detail(sprint_id):
         conn = get_db_connection()
         cur = get_dict_cursor(conn)
 
-        cur.execute("SELECT * FROM sprints WHERE id = %s", (sprint_id,))
+        cur.execute("""
+            SELECT s.*, p.name AS project_name, p.key_code AS project_key
+            FROM sprints s
+            LEFT JOIN projects p ON s.project_id = p.id
+            WHERE s.id = %s
+        """, (sprint_id,))
         sprint = cur.fetchone()
 
         if not sprint:
@@ -226,10 +251,15 @@ def detail(sprint_id):
         except Exception:
             days_remaining = 0
 
+        # Load projects for edit dropdown
+        cur.execute("SELECT id, name, key_code FROM projects ORDER BY name ASC")
+        projects = cur.fetchall()
+
         return render_template(
             "sprint_detail.html",
             user=user,
             sprint=sprint,
+            projects=projects,
             tasks=tasks,
             total_tasks=total_tasks,
             completed_tasks=completed_tasks,
@@ -256,6 +286,7 @@ def detail(sprint_id):
 @sprints_bp.route("/sprints/<int:sprint_id>/edit", methods=["POST"])
 def edit(sprint_id):
     user = get_current_user()
+    project_id = request.form.get("project_id")
     name = request.form.get("name", "").strip()
     goal = request.form.get("goal", "").strip()
     start_date = request.form.get("start_date")
@@ -267,14 +298,16 @@ def edit(sprint_id):
         flash("Missing required fields for sprint update.", "danger")
         return redirect(url_for("sprints.detail", sprint_id=sprint_id))
 
+    proj_id = int(project_id) if project_id and project_id.isdigit() else None
+
     conn = get_db_connection()
     cur = conn.cursor()
     try:
         cur.execute("""
             UPDATE sprints
-            SET name = %s, goal = %s, start_date = %s, end_date = %s, capacity_hours = %s, status = %s
+            SET project_id = %s, name = %s, goal = %s, start_date = %s, end_date = %s, capacity_hours = %s, status = %s
             WHERE id = %s
-        """, (name, goal, start_date, end_date, float(capacity_hours), status, sprint_id))
+        """, (proj_id, name, goal, start_date, end_date, float(capacity_hours), status, sprint_id))
         conn.commit()
 
         log_audit(

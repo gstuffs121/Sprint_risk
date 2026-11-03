@@ -180,8 +180,21 @@ def init_db():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """)
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS projects (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(150) NOT NULL,
+                    key_code VARCHAR(20) NOT NULL UNIQUE,
+                    description TEXT,
+                    status VARCHAR(30) NOT NULL DEFAULT 'active',
+                    owner_id INT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_projects_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """)
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS sprints (
                     id INT AUTO_INCREMENT PRIMARY KEY,
+                    project_id INT NULL,
                     name VARCHAR(150) NOT NULL,
                     goal TEXT,
                     start_date DATE NOT NULL,
@@ -189,7 +202,9 @@ def init_db():
                     capacity_hours FLOAT NOT NULL DEFAULT 160.0,
                     status VARCHAR(50) NOT NULL DEFAULT 'planning',
                     created_by INT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_sprints_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+                    CONSTRAINT fk_sprints_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """)
             cur.execute("""
@@ -207,7 +222,8 @@ def init_db():
                     status VARCHAR(30) NOT NULL DEFAULT 'todo',
                     is_delayed TINYINT(1) NOT NULL DEFAULT 0,
                     due_date DATE NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_tasks_sprint FOREIGN KEY (sprint_id) REFERENCES sprints(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """)
             cur.execute("""
@@ -220,7 +236,8 @@ def init_db():
                     explanation TEXT,
                     model_version VARCHAR(50) DEFAULT 'v1-synthetic-demo',
                     created_by INT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_predictions_task FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """)
             cur.execute("""
@@ -256,8 +273,21 @@ def init_db():
                 );
             """)
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS projects (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    key_code TEXT NOT NULL UNIQUE,
+                    description TEXT,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    owner_id INTEGER NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
+                );
+            """)
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS sprints (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_id INTEGER NULL,
                     name TEXT NOT NULL,
                     goal TEXT,
                     start_date TEXT NOT NULL,
@@ -265,7 +295,9 @@ def init_db():
                     capacity_hours REAL NOT NULL DEFAULT 160.0,
                     status TEXT NOT NULL DEFAULT 'planning',
                     created_by INTEGER NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+                    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
                 );
             """)
             cur.execute("""
@@ -323,6 +355,25 @@ def init_db():
 
         conn.commit()
 
+        # Schema evolution: ensure project_id column exists on sprints
+        try:
+            if engine == "mysql":
+                cur.execute("""
+                    SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sprints' AND COLUMN_NAME = 'project_id'
+                """)
+                if not cur.fetchone():
+                    cur.execute("ALTER TABLE sprints ADD COLUMN project_id INT NULL")
+                    conn.commit()
+            else:
+                cur.execute("PRAGMA table_info(sprints)")
+                cols = [c["name"] if isinstance(c, dict) else c[1] for c in cur.fetchall()]
+                if "project_id" not in cols:
+                    cur.execute("ALTER TABLE sprints ADD COLUMN project_id INTEGER NULL")
+                    conn.commit()
+        except Exception as col_err:
+            print("Notice on project_id migration:", col_err)
+
         # SECURE INITIAL ADMIN PROVISIONING:
         # Predictable default administrator credentials (e.g. admin/admin123) are STRICTLY FORBIDDEN.
         # An initial administrator is only created if explicitly configured by the operator via environment variables.
@@ -341,6 +392,25 @@ def init_db():
                 conn.commit()
                 log_audit("ADMIN_PROVISIONED_FROM_ENV", f"Admin '{init_admin_user}' provisioned from environment configuration")
 
+        # Seed default Project if empty
+        cur.execute("SELECT COUNT(*) AS total FROM projects")
+        proj_count_row = cur.fetchone()
+        proj_count = proj_count_row["total"] if isinstance(proj_count_row, dict) else proj_count_row[0]
+        if proj_count == 0:
+            cur.execute("""
+                INSERT INTO projects (name, key_code, description, status)
+                VALUES (%s, %s, %s, %s)
+            """, (
+                "SprintAI Core Engine",
+                "SPAI",
+                "Flagship engineering system combining sprint tracking with ML risk estimation.",
+                "active"
+            ))
+            conn.commit()
+            default_proj_id = cur.lastrowid or 1
+            cur.execute("UPDATE sprints SET project_id = %s WHERE project_id IS NULL", (default_proj_id,))
+            conn.commit()
+
         # Seed Sprints & Tasks if table is completely empty (sample non-sensitive project data)
         cur.execute("SELECT COUNT(*) AS total FROM sprints")
         sprint_count_row = cur.fetchone()
@@ -348,9 +418,10 @@ def init_db():
 
         if sprint_count == 0:
             cur.execute("""
-                INSERT INTO sprints (name, goal, start_date, end_date, capacity_hours, status)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO sprints (project_id, name, goal, start_date, end_date, capacity_hours, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (
+                1,
                 "Sprint 14 - AI Engine & Analytics",
                 "Deploy machine learning effort estimation and enhance risk analytics dashboard.",
                 "2026-10-20",
@@ -361,9 +432,10 @@ def init_db():
             sprint_1_id = cur.lastrowid or 1
 
             cur.execute("""
-                INSERT INTO sprints (name, goal, start_date, end_date, capacity_hours, status)
+                INSERT INTO sprints (project_id, name, goal, start_date, end_date, capacity_hours, status)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (
+                1,
                 "Sprint 15 - Core Auth & Admin Portal",
                 "Implement enterprise role-based authorization, user management, and security audit.",
                 "2026-11-06",
@@ -374,9 +446,10 @@ def init_db():
             sprint_2_id = cur.lastrowid or 2
 
             cur.execute("""
-                INSERT INTO sprints (name, goal, start_date, end_date, capacity_hours, status)
+                INSERT INTO sprints (project_id, name, goal, start_date, end_date, capacity_hours, status)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (
+                1,
                 "Sprint 13 - Infrastructure & Data Pipeline",
                 "Establish baseline dataset generation and initial model training pipeline.",
                 "2026-10-05",

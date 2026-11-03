@@ -14,6 +14,8 @@ from routes.auth import get_current_user
 
 tasks_bp = Blueprint("tasks", __name__)
 
+VALID_STATUSES = ["backlog", "todo", "in_progress", "review", "blocked", "completed"]
+
 
 @tasks_bp.route("/tasks", methods=["GET", "POST"])
 def index():
@@ -48,7 +50,7 @@ def index():
             if priority not in ["Low", "Medium", "High", "Critical"]:
                 priority = "Medium"
 
-            if status not in ["todo", "in_progress", "blocked", "completed"]:
+            if status not in VALID_STATUSES:
                 status = "todo"
 
             conn = get_db_connection()
@@ -121,10 +123,13 @@ def index():
 
         # Build query for tasks
         base_query = """
-            SELECT t.*, s.name AS sprint_name,
+            SELECT t.*,
+                s.name AS sprint_name,
+                p_proj.key_code AS project_key,
                 p.predicted_hours, p.risk_probability, p.risk_level
             FROM tasks t
             LEFT JOIN sprints s ON t.sprint_id = s.id
+            LEFT JOIN projects p_proj ON s.project_id = p_proj.id
             LEFT JOIN (
                 SELECT task_id, predicted_hours, risk_probability, risk_level
                 FROM predictions
@@ -155,19 +160,22 @@ def index():
 
         base_query += " ORDER BY t.created_at DESC"
 
-        cur.execute(base_query, tuple(params))
+        cur.execute(base_query, tuple(params) if params else None)
         task_list = cur.fetchall()
 
         # Group tasks for Kanban columns
         kanban = {
+            "backlog": [],
             "todo": [],
             "in_progress": [],
-            "blocked": [],
+            "review": [],
             "completed": []
         }
         for task in task_list:
             st = task.get("status", "todo").lower().replace(" ", "_").replace("-", "_")
-            if st in kanban:
+            if st == "blocked":
+                kanban["review"].append(task)
+            elif st in kanban:
                 kanban[st].append(task)
             else:
                 kanban["todo"].append(task)
@@ -176,30 +184,30 @@ def index():
         total_tasks = len(task_list)
         completed_count = sum(1 for t in task_list if t["status"] == "completed")
         in_progress_count = sum(1 for t in task_list if t["status"] == "in_progress")
-        blocked_count = sum(1 for t in task_list if t["status"] == "blocked")
-        delayed_count = sum(1 for t in task_list if t["is_delayed"] == 1)
-        total_estimated = sum(t.get("estimated_hours", 0) or 0 for t in task_list)
-        total_actual = sum(t.get("actual_hours", 0) or 0 for t in task_list)
+        blocked_count = sum(1 for t in task_list if t["status"] in ["blocked", "review"])
+        delayed_count = sum(1 for t in task_list if t.get("is_delayed") == 1)
+
+        total_estimated = round(sum(t.get("estimated_hours", 0) or 0 for t in task_list), 1)
+        total_actual = round(sum(t.get("actual_hours", 0) or 0 for t in task_list), 1)
 
         return render_template(
             "tasks.html",
             user=user,
             tasks=task_list,
-            task_list=task_list,
-            sprints=sprint_list,
             kanban=kanban,
+            sprints=sprint_list,
             view_mode=view_mode,
+            selected_sprint=sprint_filter,
+            selected_status=status_filter,
+            selected_priority=priority_filter,
+            search_query=search_query,
             total_tasks=total_tasks,
             completed_count=completed_count,
             in_progress_count=in_progress_count,
             blocked_count=blocked_count,
             delayed_count=delayed_count,
-            total_estimated=round(total_estimated, 1),
-            total_actual=round(total_actual, 1),
-            selected_sprint=sprint_filter,
-            selected_status=status_filter,
-            selected_priority=priority_filter,
-            search_query=search_query
+            total_estimated=total_estimated,
+            total_actual=total_actual
         )
 
     except Exception as e:
@@ -209,21 +217,20 @@ def index():
             "tasks.html",
             user=user,
             tasks=[],
-            task_list=[],
+            kanban={"backlog": [], "todo": [], "in_progress": [], "review": [], "completed": []},
             sprints=[],
-            kanban={"todo": [], "in_progress": [], "blocked": [], "completed": []},
             view_mode="board",
+            selected_sprint="",
+            selected_status="",
+            selected_priority="",
+            search_query="",
             total_tasks=0,
             completed_count=0,
             in_progress_count=0,
             blocked_count=0,
             delayed_count=0,
             total_estimated=0,
-            total_actual=0,
-            selected_sprint="",
-            selected_status="",
-            selected_priority="",
-            search_query=""
+            total_actual=0
         )
     finally:
         if cur:
@@ -237,7 +244,7 @@ def update_status(task_id):
     user = get_current_user()
     new_status = request.form.get("status") or (request.json.get("status") if request.is_json else None)
 
-    if not new_status or new_status not in ["todo", "in_progress", "blocked", "completed"]:
+    if not new_status or new_status not in VALID_STATUSES:
         if request.is_json:
             return jsonify({"status": "error", "message": "Invalid status"}), 400
         flash("Invalid task status specified.", "danger")
@@ -249,6 +256,8 @@ def update_status(task_id):
         # If moving to completed, is_delayed is resolved
         if new_status == "completed":
             cur.execute("UPDATE tasks SET status = %s, is_delayed = 0 WHERE id = %s", (new_status, task_id))
+        elif new_status == "blocked":
+            cur.execute("UPDATE tasks SET status = %s, is_delayed = 1 WHERE id = %s", (new_status, task_id))
         else:
             cur.execute("UPDATE tasks SET status = %s WHERE id = %s", (new_status, task_id))
         conn.commit()
