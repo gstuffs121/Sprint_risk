@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 600" role="img" aria-labelledby="title desc">
+  <title id="title">SprintAI application architecture</title>
+  <desc id="desc">Browser pages and JavaScript send requests to Flask routes. Routes render Jinja templates or JSON and CSV, call the ML inference modules, and read or write through database.py to MySQL or its SQLite fallback. The training script creates synthetic data and model artifacts independently.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#172033"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8ba3c7"/>
+    </marker>
+    <style>
+      text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: #e7eefb; }
+      .title { font-size: 24px; font-weight: 700; }
+      .label { font-size: 16px; font-weight: 700; }
+      .detail { font-size: 13px; fill: #b7c5dd; }
+      .box { stroke-width: 1.5; rx: 14; }
+      .flow { fill: none; stroke: #8ba3c7; stroke-width: 2; marker-end: url(#arrow); }
+      .dashed { stroke-dasharray: 7 6; }
+    </style>
+  </defs>
+  <rect width="1120" height="600" fill="url(#bg)" rx="20"/>
+  <text x="40" y="48" class="title">SprintAI · application and data flow</text>
+
+  <rect x="40" y="95" width="230" height="150" class="box" fill="#1e2b45" stroke="#667eea"/>
+  <text x="60" y="127" class="label">Browser UI</text>
+  <text x="60" y="155" class="detail">Jinja-rendered pages</text>
+  <text x="60" y="177" class="detail">HTML · CSS · JavaScript</text>
+  <text x="60" y="199" class="detail">Chart.js / Lucide via CDN</text>
+  <text x="60" y="225" class="detail">Kanban · dashboards · forms</text>
+
+  <rect x="335" y="95" width="250" height="150" class="box" fill="#202d45" stroke="#38bdf8"/>
+  <text x="355" y="127" class="label">Flask application</text>
+  <text x="355" y="155" class="detail">app.py · Blueprint registration</text>
+  <text x="355" y="177" class="detail">auth · projects · sprints · tasks</text>
+  <text x="355" y="199" class="detail">dashboard · predictions · reports</text>
+  <text x="355" y="225" class="detail">admin routes have role guard</text>
+
+  <rect x="650" y="78" width="220" height="174" class="box" fill="#292449" stroke="#a78bfa"/>
+  <text x="670" y="111" class="label">ML inference</text>
+  <text x="670" y="141" class="detail">predict_effort()</text>
+  <text x="670" y="163" class="detail">RandomForestRegressor</text>
+  <text x="670" y="190" class="detail">predict_risk()</text>
+  <text x="670" y="212" class="detail">RandomForestClassifier</text>
+  <text x="670" y="237" class="detail">joblib artifacts in models/</text>
+
+  <rect x="935" y="95" width="145" height="150" class="box" fill="#123a39" stroke="#34d399"/>
+  <text x="953" y="127" class="label">Data layer</text>
+  <text x="953" y="157" class="detail">database.py</text>
+  <text x="953" y="181" class="detail">MySQL first</text>
+  <text x="953" y="203" class="detail">SQLite fallback</text>
+  <text x="953" y="227" class="detail">CRUD · audit · seeds</text>
+
+  <path d="M270 170 H328" class="flow"/>
+  <text x="277" y="155" class="detail">HTTP / JSON</text>
+  <path d="M585 150 H643" class="flow"/>
+  <text x="589" y="136" class="detail">prediction call</text>
+  <path d="M870 150 H928" class="flow"/>
+  <text x="874" y="136" class="detail">read / write</text>
+  <path d="M335 220 C310 295 255 295 210 252" class="flow"/>
+  <text x="242" y="292" class="detail">Rendered HTML, JSON, or CSV response</text>
+
+  <rect x="335" y="365" width="250" height="165" class="box" fill="#3a2a19" stroke="#fbbf24"/>
+  <text x="355" y="398" class="label">Training script</text>
+  <text x="355" y="428" class="detail">ai/train_models.py</text>
+  <text x="355" y="452" class="detail">600 synthetic demo rows</text>
+  <text x="355" y="476" class="detail">One-hot priority + numeric features</text>
+  <text x="355" y="505" class="detail">writes CSV and joblib artifacts</text>
+
+  <rect x="650" y="365" width="220" height="165" class="box" fill="#352534" stroke="#f472b6"/>
+  <text x="670" y="398" class="label">Repository artifacts</text>
+  <text x="670" y="428" class="detail">dataset/sprint_tasks.csv</text>
+  <text x="670" y="452" class="detail">models/effort_model.joblib</text>
+  <text x="670" y="476" class="detail">models/risk_model.joblib</text>
+  <text x="670" y="505" class="detail">demonstration data only</text>
+
+  <path d="M585 447 H643" class="flow dashed"/>
+  <text x="587" y="432" class="detail">generates</text>
+  <path d="M760 357 V260" class="flow dashed"/>
+  <text x="774" y="309" class="detail">loaded for inference</text>
+
+  <rect x="40" y="365" width="230" height="165" class="box" fill="#1e2b45" stroke="#64748b"/>
+  <text x="60" y="398" class="label">Tests & utilities</text>
+  <text x="60" y="428" class="detail">tests/ · unittest</text>
+  <text x="60" y="452" class="detail">test_connection.py</text>
+  <text x="60" y="476" class="detail">test_prediction.py</text>
+  <text x="60" y="505" class="detail">utils/create_admin.py</text>
+  <path d="M270 447 H328" class="flow dashed"/>
+  <text x="277" y="432" class="detail">diagnostics</text>
+
+  <text x="40" y="572" class="detail">Note: The admin retraining handler currently refers to a missing train_models() function in ai/train_models.py.</text>
+</svg>
